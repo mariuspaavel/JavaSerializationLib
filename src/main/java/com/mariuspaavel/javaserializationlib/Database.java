@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.mariuspaavel.staticutils.Base64;
+import com.mariuspaavel.javautilities.Base64;
 
 
 public abstract class Database {
