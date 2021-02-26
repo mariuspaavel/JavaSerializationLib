@@ -1,4 +1,4 @@
-package com.mariuspaavel.serializationlib;
+package com.mariuspaavel.javaserializationlib;
 
 public class SerializationException extends RuntimeException {
 	public SerializationException(String message) {

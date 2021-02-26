@@ -1,4 +1,4 @@
-package com.mariuspaavel.serializationlib;
+package com.mariuspaavel.javaserializationlib;
 
 public interface DBObject {
 	public DBObjectMeta getMeta();

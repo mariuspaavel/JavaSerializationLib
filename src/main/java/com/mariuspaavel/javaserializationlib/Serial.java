@@ -1,4 +1,4 @@
-package com.mariuspaavel.serializationlib;
+package com.mariuspaavel.javaserializationlib;
 
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;

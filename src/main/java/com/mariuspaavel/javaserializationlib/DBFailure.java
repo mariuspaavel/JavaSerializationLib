@@ -1,4 +1,4 @@
-package com.mariuspaavel.serializationlib;
+package com.mariuspaavel.javaserializationlib;
 
 public class DBFailure extends RuntimeException {
 	DBFailure(String cause){

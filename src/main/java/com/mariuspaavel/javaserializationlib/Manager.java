@@ -1,4 +1,4 @@
-package com.mariuspaavel.serializationlib;
+package com.mariuspaavel.javaserializationlib;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
