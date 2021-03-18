@@ -1,15 +1,10 @@
 package com.mariuspaavel.javaserializationlib;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.TreeMap;
 
+import java.util.*;
+import java.io.*;
 
 
 public class Manager {
@@ -260,7 +255,105 @@ public class Manager {
 				((bytes[6] & 0xFFl) << 8 ) |
 				((bytes[7] & 0xFFl) << 0 );
 	}
-	
-	
+
+	public void writeJson(Object o, PrintStream ps) throws IOException{
+		lockRegistration();
+		Object flatObject = flattenObject(o);
+		System.out.println("Writing json");
+		JsonMap.writeObject(flatObject, ps);
+	}
+	public Object readJson(InputStreamReader is) throws IOException{
+		lockRegistration();
+		Object flatObject = JsonMap.readObject(is);
+		Object o = inflateObject(flatObject);
+		return o;
+	}
+
+
+	private Map<String, Object> flattenClass(Object o){
+		System.out.println("Flattening class");
+		Map<String, Object> map = new HashMap<String, Object>();
+		Class cl = o.getClass();
+		TreeMap<String, Field> fields = getClassFields(cl);
+		if(fields == null)throw new IllegalArgumentException("Unknown class");
+		
+		map.put("className", cl.getName());
+
+		try{
+			for(String s: fields.keySet()){
+				Field f = fields.get(s);
+				Class fieldType = f.getType();
+				if(fieldType.equals(byte.class))map.put(s, Byte.toString(f.getByte(o)));
+				if(fieldType.equals(int.class))map.put(s, Byte.toString(f.getByte(o)));
+				if(fieldType.equals(long.class))map.put(s, Byte.toString(f.getByte(o)));
+				map.put(s, flattenObject(f.get(o)));
+			}
+		}catch(IllegalAccessException e){
+			e.printStackTrace();
+			throw new RuntimeException("Class flattening failed");
+		}
+		return map;
+	}	
+
+	private List<Object> flattenList(List<Object> inputList){
+		List<Object> outputList = new ArrayList<Object>();
+		for(Object inputObject : inputList){
+			outputList.add(flattenObject(inputObject));
+		}
+		return outputList;
+
+	}
+	private Object flattenObject(Object inputObject){
+		if(inputObject instanceof String)return inputObject;	
+		else if(inputObject instanceof List)return flattenList((List)inputObject);		
+		else if(classId.containsKey(inputObject.getClass()))return flattenClass(inputObject);
+		else return inputObject.toString();
+	}
+
+	private Object inflateClass(Map<String, Object> input){
+		String className = (String)input.get("className");
+		Class cl = classesOrdered.get(className);
+		Object output = null;
+		try{
+			output = cl.getDeclaredConstructor().newInstance();
+		}catch(NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e){
+			e.printStackTrace();
+			throw new RuntimeException("Failed to inflate class");
+		}
+		TreeMap<String, Field> cinf = classInfo.get(cl);
+		
+		try{
+			for(String fieldName : cinf.keySet()){
+				Object inputObject = input.get(fieldName);
+				if(inputObject == null)continue;
+				Field field = cinf.get(fieldName);
+				Class fieldType = field.getType();
+
+				if(fieldType.equals(byte.class))field.setByte(output, ((Byte)input.get(fieldName)).byteValue());
+				else if(fieldType.equals(int.class))field.setInt(output, ((Integer)input.get(fieldName)).intValue());
+				else if(fieldType.equals(long.class))field.setLong(output, ((Long)input.get(fieldName)).longValue());
+				else{
+					Object inflatedObject = inflateObject(inputObject);
+					field.set(output, inflatedObject);
+				}
+			}
+		}catch(IllegalAccessException e){
+			e.printStackTrace();
+			throw new RuntimeException("Failed to inflate class");
+		}
+		return output;
+	}
+	private List<Object> inflateList(List<Object> inputList){
+		List<Object> output = new ArrayList<Object>();
+		for(Object o : inputList){
+			output.add(inflateObject(o));
+		}
+		return output;
+	}
+	private Object inflateObject(Object input){
+		if(input instanceof Map)return inflateClass((Map<String, Object>)input);
+		else if(input instanceof List)return inflateList((List)input);
+		else return input; 
+	}
 	
 }
