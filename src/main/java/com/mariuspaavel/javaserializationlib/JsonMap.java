@@ -46,7 +46,8 @@ public class JsonMap{
 			}
 		}
 	}
-	private static void writeString(String s, PrintStream ps) throws IOException{
+	private static void writeString(String s, PrintStream ps, int depth) throws IOException{
+		for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('\"');
 		ps.print(s);
 		ps.print('\"');
@@ -58,11 +59,11 @@ public class JsonMap{
 		ps.print('\n');
 		for(Iterator<String> iter = m.keySet().iterator(); iter.hasNext();){
 			String s = iter.next();
-			for(int i = 0; i < depth+1; i++)ps.print('\t');
-			writeString(s, ps);
+			writeString(s, ps, depth+1);
 			ps.print(':');
 			ps.print(' ');
-			writeObject(m.get(s), ps, depth+1);
+			Object o = m.get(s);
+			writeObject(o, ps, depth+1);
 			if(iter.hasNext())ps.print(',');
 			ps.print('\n');
 		}
@@ -73,8 +74,12 @@ public class JsonMap{
 		ps.print('\n');
 		for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('[');
-		for(Object o : l){
+		ps.print('\n');
+		for(Iterator<Object> iter = l.iterator(); iter.hasNext();){
+			Object o = iter.next();
 			writeObject(o, ps, depth+1);
+			if(iter.hasNext())ps.print(',');
+			ps.print('\n');
 		}
 		for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print(']');
@@ -84,7 +89,7 @@ public class JsonMap{
 		Class cl = o.getClass();
 		if(o instanceof List)writeList((List)o, ps, depth);
 		else if(o instanceof Map)writeMap((Map)o, ps, depth);
-		else writeString(o.toString(), ps);
+		else writeString(o.toString(), ps, 0);
 	}
 	public static void writeObject(Object o, PrintStream ps) throws IOException{
 		writeObject(o, ps, 0);
