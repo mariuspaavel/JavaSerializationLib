@@ -42,7 +42,7 @@ public abstract class Database {
 	
 	
 	private boolean isopen;
-	private void open() {
+	public void open() {
 		if(isopen)return;
 		c = createDB(getName());
 		

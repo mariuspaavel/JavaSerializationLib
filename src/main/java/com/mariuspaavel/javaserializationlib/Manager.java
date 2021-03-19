@@ -15,7 +15,7 @@ public class Manager {
 		TreeMap<String, Field> classFields = new TreeMap<String, Field>();
 		for(Field field  : c.getDeclaredFields())
 		{
-		    if (field.isAnnotationPresent(Serial.class))
+		    if (field.isAnnotationPresent(S.class))
 		        {
 		              classFields.put(field.getName(), field);
 		        }
@@ -324,6 +324,7 @@ public class Manager {
 		
 		try{
 			for(String fieldName : cinf.keySet()){
+				if(fieldName.equals("className"))continue;
 				Object inputObject = input.get(fieldName);
 				if(inputObject == null)continue;
 				Field field = cinf.get(fieldName);
