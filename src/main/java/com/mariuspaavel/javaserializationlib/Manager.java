@@ -306,6 +306,25 @@ public class Manager {
 		return outputList;
 
 	}
+	private Number flattenNumber(Number inputNumber){
+		Class type = inputNumber.getClass();	
+
+		if(inputNumber instanceof Byte){
+			return new Long(((Byte)inputNumber).byteValue());
+		}else if(inputNumber instanceof Short){
+			return new Long(((Short)inputNumber).shortValue());
+		}else if(inputNumber instanceof Integer){
+			return new Long(((Integer)inputNumber).intValue());
+		}else if(inputNumber instanceof Long){
+			return inputNumber;
+		}else if(inputNumber instanceof Float){
+			return new Float(inputNumber.floatValue());
+		}else if(inputNumber instanceof Double){
+			return new Long(inputNumber.doubleValue());
+		}else if(inputNumber instanceof Boolean){
+			return new L(inputNumber.shortValue());
+		}
+	}
 	private Object flattenObject(Object inputObject){
 		if(inputObject instanceof String)return inputObject;	
 		else if(inputObject instanceof List)return flattenList((List)inputObject);
@@ -334,9 +353,22 @@ public class Manager {
 				Field field = cinf.get(fieldName);
 				Class fieldType = field.getType();
 
-				if(fieldType.equals(byte.class))field.setByte(output, ((Byte)input.get(fieldName)).byteValue());
-				else if(fieldType.equals(int.class))field.setInt(output, ((Integer)input.get(fieldName)).intValue());
-				else if(fieldType.equals(long.class))field.setLong(output, ((Long)input.get(fieldName)).longValue());
+				if(fieldType.equals(byte.class))field.setByte(output, ((Byte)inputObject).byteValue());
+				else if(fieldType.equals(short.class))field.setShort(output, ((Short)inputObject).shortValue());
+				else if(fieldType.equals(int.class))field.setInt(output, ((Integer)inputObject.intValue());
+				else if(fieldType.equals(long.class))field.setLong(output, ((Long)inputObject).longValue());
+				else if(fieldType.equals(float.class))field.setFloat(output, ((Float)inputObject).floatValue());
+				else if(fieldType.equals(double.class))field.setDouble(output, ((Double)inputObject).doubleValue());
+				else if(fieldType.equals(boolean.class))field.setBoolean(output, (Boolean)inputObject.booleanValue());
+
+				else if(fieldType.equals(Byte.class))field.set(output, new Byte(inputObject.toString()));
+				else if(fieldType.equals(Short.class))field.set(output, new Short(inputObject.toString()));
+				else if(fieldType.equals(Integer.class))field.set(output, new Integer(inputObject.toString()));
+				else if(fieldType.equals(Long.class))field.set(output, new Long(inputObject.toString()));
+				else if(fieldType.equals(Float.class))field.set(output, new Float(inputObject.toString()));
+				else if(fieldType.equals(Double.class))field.set(output, new Boolean(inputObject.toString()));
+				else if(fieldType.equals(Boolean.class))field.set(output, new Boolean(inputObject.toString()));
+		
 				else{
 					Object inflatedObject = inflateObject(inputObject);
 					field.set(output, inflatedObject);
