@@ -50,6 +50,57 @@ public class JsonMap{
 		}
 		return sb.toString();
 	}
+	private static Number readNumber(InputStreamReader is, char firstDigit){
+		StringBuilder sb = new StringBuilder(firstDigit);
+		char c = 0;
+		while(numChars(c = (char)is.read())){
+			sb.append(c);
+		}
+		String s = sb.toString().lower();
+		if(s.contains(".") || s.contains("e")){
+			return new Double(s);
+		}
+		else return new Long(s);
+	}
+	private static boolean numChars(char c){
+		switch(c){
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+			case '.':
+			case '-':
+			case 'e':
+			case 'E':
+			return true;
+			default: return false;
+		}
+	}
+	private static boolean readBoolean(InputStreamReader is, char firstDigit){
+		final String trueSequence = "true";
+		final String falseSequence = "false";
+		char c = Character.toLowerCase(firstDigit);
+		String expected = null;
+		if(c == 't'){
+			expected = trueSequence;
+		}
+		else if(c == 'f'){
+			expected = falseSequence;
+		}
+		else throw new RuntimeException("invalid boolean value in json");
+		
+		for(int i = 1; i < expected.length(); i++){
+			c = (char)is.read();
+			if(c != expected.charAt(i))throw new RuntimException("invalid boolean value in json");
+		}
+		return expected == trueSequence;
+	}
 	public static Object readObject(InputStreamReader is)throws IOException{
 		while(true){
 			
@@ -60,7 +111,11 @@ public class JsonMap{
 				case '\"': return readString(is);
 				case '}': return null;
 				case ']': return null;
-				default: continue;
+				case 't': return readBoolean(is, c);
+				case 'f': return readBoolean(is, c);
+				default: 
+				if(numChars(c))return readNumber(is, c);
+				else continue;
 			}
 		}
 	}
@@ -101,10 +156,20 @@ public class JsonMap{
 		ps.print(']');
 
 	}
+	private static void writeBoolean(Boolean b, PrintStream ps, boolean indent, int depth){
+		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
+		ps.print(b.toString());
+	}
+	private static void writeNumber(Number n, PrintStream ps, boolean indent, int depth){
+		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
+		ps.print(n.toString());
+	}
 	private static void writeObject(Object o, PrintStream ps, boolean indent, int depth) throws IOException{
 		Class cl = o.getClass();
 		if(o instanceof List)writeList((List)o, ps, indent, depth);
 		else if(o instanceof Map)writeMap((Map)o, ps, indent, depth);
+		else if(o instanceof Number)writeNumber((Number)o, ps, indent, depth);
+		else if(o instanceof Boolean)writeBoolean((Boolean)o, ps, indent, depth);
 		else writeString(o.toString(), ps, indent, depth);
 	}
 	public static void writeObject(Object o, PrintStream ps) throws IOException{

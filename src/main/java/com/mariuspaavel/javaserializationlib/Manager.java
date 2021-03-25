@@ -256,15 +256,17 @@ public class Manager {
 				((bytes[7] & 0xFFl) << 0 );
 	}
 
-	public void writeJson(Object o, PrintStream ps) throws IOException{
+	public void writeJson(Object o, OutputStream os) throws IOException{
 		lockRegistration();
+		PrintStream ps = new PrintStream(os);
 		Object flatObject = flattenObject(o);
 		System.out.println("Writing json");
 		JsonMap.writeObject(flatObject, ps);
 	}
-	public Object readJson(InputStreamReader is) throws IOException{
+	public Object readJson(InputStream is) throws IOException{
 		lockRegistration();
-		Object flatObject = JsonMap.readObject(is);
+		InputStreamReader ir = new InputStreamReader(is);
+		Object flatObject = JsonMap.readObject(ir);
 		Object o = inflateObject(flatObject);
 		return o;
 	}
@@ -283,9 +285,10 @@ public class Manager {
 			for(String s: fields.keySet()){
 				Field f = fields.get(s);
 				Class fieldType = f.getType();
-				if(fieldType.equals(byte.class))map.put(s, Byte.toString(f.getByte(o)));
-				if(fieldType.equals(int.class))map.put(s, Byte.toString(f.getByte(o)));
-				if(fieldType.equals(long.class))map.put(s, Byte.toString(f.getByte(o)));
+				if(fieldType.equals(byte.class))map.put(s, f.getByte(o));
+				if(fieldType.equals(int.class))map.put(s, f.getInt(o));
+				if(fieldType.equals(long.class))map.put(s, f.getLong(o));
+				if(fieldType.equals(boolean.class)map.put(s, f.getBoolean(o)));
 				map.put(s, flattenObject(f.get(o)));
 			}
 		}catch(IllegalAccessException e){
@@ -305,7 +308,8 @@ public class Manager {
 	}
 	private Object flattenObject(Object inputObject){
 		if(inputObject instanceof String)return inputObject;	
-		else if(inputObject instanceof List)return flattenList((List)inputObject);		
+		else if(inputObject instanceof List)return flattenList((List)inputObject);
+		else if(inputObject instanceof Number)
 		else if(classId.containsKey(inputObject.getClass()))return flattenClass(inputObject);
 		else return inputObject.toString();
 	}
