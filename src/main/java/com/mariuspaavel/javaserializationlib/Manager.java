@@ -6,6 +6,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.io.*;
 
+import com.mariuspaavel.juvautilities.*;
+
 
 public class Manager {
 	private HashMap<Class, TreeMap<String, Field>> classInfo = new HashMap<Class, TreeMap<String, Field>>();
@@ -15,10 +17,10 @@ public class Manager {
 		TreeMap<String, Field> classFields = new TreeMap<String, Field>();
 		for(Field field  : c.getDeclaredFields())
 		{
-		    if (field.isAnnotationPresent(S.class))
-		        {
-		              classFields.put(field.getName(), field);
-		        }
+			if (field.isAnnotationPresent(S.class))
+			{
+		    		classFields.put(field.getName(), field);
+			}
 		}
 		classInfo.put(c, classFields);
 		classesOrdered.put(c.getName(), c);
@@ -32,22 +34,34 @@ public class Manager {
 		if(registrationLocked)return;
 		registrationLocked = true;
 		
-		classId.put(Byte.class, 1);
-		idClass.put(1, Byte.class);
+		classId.put(Boolean.class, 1);
+		idClass.put(1, Boolean.class);
 		
-		classId.put(Integer.class, 2);
-		idClass.put(2, Integer.class);
+		classId.put(Byte.class, 2);
+		idClass.put(2, Byte.class);
+			
+		classId.put(Short.class, 3);
+		idClass.put(3, Short.class);
+	
+		classId.put(Integer.class, 4);
+		idClass.put(4, Integer.class);
 		
-		classId.put(Long.class, 3);
-		idClass.put(3, Long.class);
+		classId.put(Long.class, 5);
+		idClass.put(5, Long.class);
+
+		classId.put(Float.class, 6);
+		idClass.put(6, Float.class);
+			
+		classId.put(Double.class, 7);
+		idClass.put(7, Double.class);	
+
+		classId.put(String.class, 8);
+		idClass.put(8, String.class);
 		
-		classId.put(String.class, 4);
-		idClass.put(4, String.class);
+		classId.put(ArrayList.class, 9);
+		idClass.put(9, ArrayList.class);
 		
-		classId.put(ArrayList.class, 5);
-		idClass.put(5, ArrayList.class);
-		
-		int id = 6;
+		int id = 10;
 		for(String name : classesOrdered.keySet()) {
 			classId.put(classesOrdered.get(name), id);
 			idClass.put(id, classesOrdered.get(name));
@@ -64,14 +78,20 @@ public class Manager {
 		Class c = f.getType();
 		
 		try {
-			if(c.equals(byte.class)) {
-				stream.write(new byte[] {f.getByte(o)});
+			if(c.equals(boolean.class)){
+				NumberSerilizer.writeBoolean(f.getBoolean(o), stream);
+			}
+			else if(c.equals(byte.class)) {
+				NumberSerializer.writeByte(f.getByte(o), stream);
+			}
+			else if(c.equals(short.class)){
+				NumberSerializer.writeShort(f.getShort(o), stream);
 			}
 			else if(c.equals(int.class)) {
-				stream.write(intToByteArray(f.getInt(o)));
+				NumberSerializer.writeInt(f.getInt(o), stream);
 			}
 			else if(c.equals(long.class)) {
-				stream.write(longToByteArray(f.getLong(o)));
+				NumberSerilizer.writeLong(f.getLong(o), stream);
 			}
 			else {
 				ObjectToBytes(f.get(o), stream);
@@ -116,7 +136,6 @@ public class Manager {
 					ObjectToBytes(elem, stream);
 				}
 			}
-			
 			else  {
 				TreeMap<String, Field> fields = classInfo.get(c);
 				if(fields == null)throw new RuntimeException(String.format("Class %s isn't registrated", c.getName()));
@@ -142,41 +161,25 @@ public class Manager {
 			Class c = idClass.get(serialid);
 			if(c == null)throw new RuntimeException(String.format("Class %s hasn't been registrated", c.getName()));
 		
-			if(c.equals(Byte.class)) {
-				buf = new byte[1];
-				stream.read(buf);
-				return buf[0];
-			}
-			else if(c.equals(Integer.class)) {
-				buf = new byte[4];
-				stream.read(buf);
-				return byteArrayToInt(buf);
-			}
-			else if(c.equals(Long.class)) {
-				buf = new byte[8];
-				stream.read(buf);
-				return byteArrayToLong(buf);
-			}
+			if(c.equals(Boolean.class))return NumberSerializer.readBoolean(stream);
+			else if(c.equals(Byte.class))return NumberSerializer.readByte(stream);
+			else if(c.equals(Short.class))return NumberSerializer.readShort(stream);
+			else if(c.equals(Integer.class))return NumberSerilizer.readInt(stream);
+			else if(c.equals(Long.class))return NumberSerializer.readLong(stream);
 			else if(c.equals(String.class)) {
-				buf = new byte[4];
-				stream.read(buf);
-				int length = byteArrayToInt(buf);
+				int length = NumberSerializer.readInt(stream);
 				buf = new byte[length];
 				stream.read(buf);
 				return new String(buf);
 			}
 			else if(c.equals(byte[].class)) {
-				buf = new byte[4];
-				stream.read(buf);
-				int length = byteArrayToInt(buf);
+				int length = NumberSerializer.readInt(stream);
 				buf = new byte[length];
 				stream.read(buf);
 				return buf;
 			}
 			else if(c.isInstance(List.class)) {
-				buf = new byte[4];
-				stream.read(buf);
-				int length = byteArrayToInt(buf);
+				int length = NumberSerializer.readInt(stream);
 				List l = (List)c.getDeclaredConstructor().newInstance();
 				for(int i = 0; i < length; i++) {
 					l.add(bytesToObject(stream));
@@ -193,16 +196,13 @@ public class Manager {
 						stream.read(buf);
 						f.setByte(o, buf[0]);
 					}
-					else if(f.getType().equals(int.class)) {
-						buf = new byte[4];
-						stream.read(buf);
-						f.setInt(o, byteArrayToInt(buf));
-					}
-					else if(f.getType().equals(long.class)) {
-						buf = new byte[8];
-						stream.read(buf);
-						f.setLong(o, byteArrayToLong(buf));
-					}
+					if(f.getType().equals(boolean.class))f.setBoolean(o, NumberSerilizer.readBoolean(stream));
+					else if(f.getType().equals(byte.class))f.setByte(o, NumberSerilizer.readByte(stream));
+					else if(f.getType().equals(short.class))f.setShort(o, NumberSerializer.readShort(stream));
+					else if(f.getType().equals(int.class))f.setInt(o, NumberSerializer.readInt(stream));
+					else if(f.getType().equals(long.class))f.setLong(o, NumberSerilizer.readLong(stream));
+					else if(f.getType().equals(float.class))f.setFloat(o, NumberSerilizer.readFloat(stream));
+					else if(f.getType().equals(double.class))f.setDouble(o, NumberSerilizer.readDouble(stream));
 					else {
 						bytesToObject(stream);
 					}
@@ -215,47 +215,6 @@ public class Manager {
 		}
 	}
 	
-	
-	
-	
-	static byte[] intToByteArray(int value) {
-	    return new byte[] {
-	            (byte)(value >>> 24),
-	            (byte)(value >>> 16),
-	            (byte)(value >>> 8),
-	            (byte)value};
-	}
-	
-	static int byteArrayToInt(byte[] bytes) {
-		return ((bytes[0] & 0xFF) << 24) |
-				((bytes[1] & 0xFF) << 16) |
-				((bytes[2] & 0xFF) << 8 ) |
-				((bytes[3] & 0xFF) << 0 );
-	}
-	
-	static byte[] longToByteArray(long value) {
-	    return new byte[] {
-	    		(byte)(value >>> 56),
-	    		(byte)(value >>> 48),
-	    		(byte)(value >>> 40),
-	    		(byte)(value >>> 32),
-	            (byte)(value >>> 24),
-	            (byte)(value >>> 16),
-	            (byte)(value >>> 8),
-	            (byte)value};
-	}
-	
-	static long byteArrayToLong(byte[] bytes) {
-		return ((bytes[0] & 0xFFl) << 56) |
-				((bytes[1] & 0xFFl) << 48) |
-				((bytes[2] & 0xFFl) << 40) |
-				((bytes[3] & 0xFFl) << 32) |
-				((bytes[4] & 0xFFl) << 24) |
-				((bytes[5] & 0xFFl) << 16) |
-				((bytes[6] & 0xFFl) << 8 ) |
-				((bytes[7] & 0xFFl) << 0 );
-	}
-
 	public void writeJson(Object o, OutputStream os) throws IOException{
 		lockRegistration();
 		PrintStream ps = new PrintStream(os);
@@ -285,10 +244,15 @@ public class Manager {
 			for(String s: fields.keySet()){
 				Field f = fields.get(s);
 				Class fieldType = f.getType();
-				if(fieldType.equals(byte.class))map.put(s, f.getByte(o));
-				if(fieldType.equals(int.class))map.put(s, f.getInt(o));
-				if(fieldType.equals(long.class))map.put(s, f.getLong(o));
-				if(fieldType.equals(boolean.class)map.put(s, f.getBoolean(o)));
+
+				if(fieldType.equals(boolean.class))map.put(s, f.getBoolean(o));
+				else if(fieldType.equals(byte.class))map.put(s, new Long(f.getByte(o)));
+				else if(fieldType.equals(short.class))map.put(s, new Long(f.getShort(o)));
+				else if(fieldType.equals(int.class))map.put(s, new Long(f.getInt(o)));
+				else if(fieldType.equals(long.class))map.put(s, f.getLong(o));
+				else if(fieldType.equals(float.class)map.put(s, new Double(f.getFloat(o)));
+				else if(fieldType.equals(double.class))map.put(s, f.getDouble(o));
+
 				map.put(s, flattenObject(f.get(o)));
 			}
 		}catch(IllegalAccessException e){
@@ -322,7 +286,7 @@ public class Manager {
 		}else if(inputNumber instanceof Double){
 			return new Long(inputNumber.doubleValue());
 		}else if(inputNumber instanceof Boolean){
-			return new L(inputNumber.shortValue());
+			return inputNumber
 		}
 	}
 	private Object flattenObject(Object inputObject){
@@ -353,21 +317,21 @@ public class Manager {
 				Field field = cinf.get(fieldName);
 				Class fieldType = field.getType();
 
-				if(fieldType.equals(byte.class))field.setByte(output, ((Byte)inputObject).byteValue());
-				else if(fieldType.equals(short.class))field.setShort(output, ((Short)inputObject).shortValue());
-				else if(fieldType.equals(int.class))field.setInt(output, ((Integer)inputObject.intValue());
+				if(fieldType.equals(byte.class))field.setByte(output, (byte)((Long)inputObject).longValue());
+				else if(fieldType.equals(short.class))field.setShort(output, (short)((Long)inputObject).longValue());
+				else if(fieldType.equals(int.class))field.setInt(output, (int)((Long)inputObject.longValue());
 				else if(fieldType.equals(long.class))field.setLong(output, ((Long)inputObject).longValue());
-				else if(fieldType.equals(float.class))field.setFloat(output, ((Float)inputObject).floatValue());
+				else if(fieldType.equals(float.class))field.setFloat(output, (float)((Double)inputObject).doubleValue());
 				else if(fieldType.equals(double.class))field.setDouble(output, ((Double)inputObject).doubleValue());
 				else if(fieldType.equals(boolean.class))field.setBoolean(output, (Boolean)inputObject.booleanValue());
 
-				else if(fieldType.equals(Byte.class))field.set(output, new Byte(inputObject.toString()));
-				else if(fieldType.equals(Short.class))field.set(output, new Short(inputObject.toString()));
-				else if(fieldType.equals(Integer.class))field.set(output, new Integer(inputObject.toString()));
-				else if(fieldType.equals(Long.class))field.set(output, new Long(inputObject.toString()));
-				else if(fieldType.equals(Float.class))field.set(output, new Float(inputObject.toString()));
-				else if(fieldType.equals(Double.class))field.set(output, new Boolean(inputObject.toString()));
-				else if(fieldType.equals(Boolean.class))field.set(output, new Boolean(inputObject.toString()));
+				else if(fieldType.equals(Byte.class))field.set(output, new Byte((byte)((Long)inputObject).longValue()));
+				else if(fieldType.equals(Short.class))field.set(output, new Short((short)((Long)inputObject).longValue()));
+				else if(fieldType.equals(Integer.class))field.set(output, new Integer((int)((Long)inputObject).longValue()));
+				else if(fieldType.equals(Long.class))field.set(output, (Long)inputObject);
+				else if(fieldType.equals(Float.class))field.set(output, new Float((float)((Double)inputObject).doubleValue()));
+				else if(fieldType.equals(Double.class))field.set(output, new Double(((Double)inputObject).doubleValue()));
+				else if(fieldType.equals(Boolean.class))field.set(output, (Boolean)inputObject);
 		
 				else{
 					Object inflatedObject = inflateObject(inputObject);

@@ -1,25 +1,10 @@
 package com.mariuspaavel.javaserializationlib;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.io.*;
+import java.lang.reflect.*;
+import java.nio.file.*;
+import java.sql.*;
+import java.util.*;
 
 import com.mariuspaavel.javautilities.Base64;
 
@@ -140,22 +125,34 @@ public abstract class Database {
 				String decltype = null;
 				Class fieldClass = f.getType();
 				
+				if(fieldClass.equals(Boolean.class) || fieldClass.equals(boolean.class)){
+					sb.append("TINYINT");
+				}
 				if(fieldClass.equals(Byte.class) || fieldClass.equals(byte.class)) {
 					sb.append("TINYINT");
 				}
-				if(fieldClass.equals(Integer.class) || fieldClass.equals(int.class)) {
+				else if(fieldClass.equals(Short.class) || fieldClass.equals(short.class)){
 					sb.append("INT");
 				}
-				if(fieldClass.equals(Long.class) || fieldClass.equals(long.class)) {
+				else if(fieldClass.equals(Integer.class) || fieldClass.equals(int.class)) {
+					sb.append("INT");
+				}
+				else if(fieldClass.equals(Long.class) || fieldClass.equals(long.class)) {
 					sb.append("BIGINT");
 				}
-				if(fieldClass.equals(String.class)) {
+				else if(fieldClass.equals(Float.class) || fieldClass.equals(float.class)){
+					sb.append("REAL");
+				}
+				else if(fieldClass.equals(Double.class) || fieldClass.equals(double.class)){
+					sb.append("REAL");
+				}
+				else if(fieldClass.equals(String.class)) {
 					sb.append("TEXT");
 				}
-				if(fieldClass.isInstance(List.class)) {
+				else if(fieldClass.isInstance(List.class)) {
 					sb.append("TEXT");
 				}
-				if(fieldClass.equals(byte[].class)) {
+				else if(fieldClass.equals(byte[].class)) {
 					sb.append("BLOB");
 				}
 				else {
@@ -255,8 +252,15 @@ public abstract class Database {
 					Field f = fmap.get(names.next());
 					
 					Class fclass = f.getType();
-					if(fclass.equals(byte.class)) {
+					
+					if(fclass.equals(boolean.class)){
+						sb.append(f.getBoolean(o))
+					}
+					else if(fclass.equals(byte.class)) {
 						sb.append(f.getByte(o));
+					}
+					else if(fclass.equals(short.class)){
+						sb.append(f.getShort(o));
 					}
 					else if(fclass.equals(int.class)) {
 						sb.append(f.getInt(o));
@@ -264,13 +268,20 @@ public abstract class Database {
 					else if(fclass.equals(long.class)) {
 						sb.append(f.getLong(o));
 					}
-					else if(fclass.equals(Byte.class)) {
-						sb.append(f.get(o).toString());
+					else if(fclass.equals(float.class)){
+						sb.append(f.getFloat(o));
 					}
-					else if(fclass.equals(Integer.class)) {
-						sb.append(f.get(o).toString());
+					else if(fclass.equals(double.class)){
+						sb.append(f.getDouble(o));
 					}
-					else if(fclass.equals(Long.class)) {
+					else if(fclass.equals(Boolean.class) 
+						|| fclass.equals(Byte.class) 
+						|| fclass.equals(Short.class) 
+						|| fclass.equals(Integer.class) 
+						|| fclass.equals(Long.class)
+						|| fclass.equals(Float.class)
+						|| fclass.equals(Double.class)
+						) {
 						sb.append(f.get(o).toString());
 					}
 					else if(fclass.equals(String.class)) {
@@ -343,24 +354,40 @@ public abstract class Database {
 			try {
 				
 				Class fclass = f.getType();
-				if(fclass.equals(byte.class)) {
-					sb.append(f.getByte(value));
+
+				if(fclass.equals(boolean.class)){
+					sb.append(f.getBoolean(o))
+				}
+				else if(fclass.equals(byte.class)) {
+					sb.append(f.getByte(o));
+				}
+				else if(fclass.equals(short.class)){
+					sb.append(f.getShort(o));
 				}
 				else if(fclass.equals(int.class)) {
-					sb.append(f.getInt(value));
+					sb.append(f.getInt(o));
 				}
 				else if(fclass.equals(long.class)) {
-					sb.append(f.getLong(value));
+					sb.append(f.getLong(o));
 				}
-				else if(fclass.equals(Byte.class)) {
-					sb.append(f.get(value).toString());
+				else if(fclass.equals(float.class)){
+					sb.append(f.getFloat(o));
 				}
-				else if(fclass.equals(Integer.class)) {
-					sb.append(f.get(value).toString());
+				else if(fclass.equals(double.class)){
+					sb.append(f.getDouble(o));
 				}
-				else if(fclass.equals(Long.class)) {
-					sb.append(f.get(value).toString());
+				else if(fclass.equals(Boolean.class) 
+					|| fclass.equals(Byte.class) 
+					|| fclass.equals(Short.class) 
+					|| fclass.equals(Integer.class) 
+					|| fclass.equals(Long.class)
+					|| fclass.equals(Float.class)
+					|| fclass.equals(Double.class)
+					) {
+					sb.append(f.get(o).toString());
 				}
+			
+
 				else if(fclass.equals(String.class)) {
 					sb.append(f.get(value));
 				}
@@ -452,9 +479,15 @@ public abstract class Database {
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(String.format("SELECT %s FROM %s WHERE dbid=%d", name, fieldName, id));) {
 				if(!rs.next())return null;
 				Class ftype = m.getClassFields(dataType).get(fieldName).getType();
-
-				if(ftype.equals(byte.class)) {
+				
+				if(ftype.equals(boolean.class)){
+					return rs.getBoolean(fieldName);
+				}
+				else if(ftype.equals(byte.class)) {
 					return rs.getByte(fieldName);
+				}
+				else if(ftype.equals(short.class)){
+					return (short)rs.getInt(fieldName);
 				}
 				else if(ftype.equals(int.class)) {
 					return rs.getInt(fieldName);
