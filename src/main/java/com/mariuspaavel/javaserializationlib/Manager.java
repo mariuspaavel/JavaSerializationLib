@@ -24,10 +24,27 @@ public class Manager {
 		}
 		classInfo.put(c, classFields);
 		classesOrdered.put(c.getName(), c);
+		if(d)ds.println(String.format("Registrated class %s"));
 	}
 	
+	private boolean d = false;
+	PrintStream ds = System.out;
+	public void turnOnDebugPrint(){
+		d = true;
+	}
+	public void turnOffDebugPrint(){
+		d = false;
+	}
+	public void setDebugPrintStream(PrintStream stream){
+		ds = stream;	
+	}
+	
+
 	private HashMap<Class, Integer> classId = new HashMap<Class, Integer>();
 	private HashMap<Integer, Class> idClass = new HashMap<Integer, Class>();
+
+	
+
 	
 	private boolean registrationLocked = false;
 	public void lockRegistration() {
@@ -66,6 +83,7 @@ public class Manager {
 			classId.put(classesOrdered.get(name), id);
 			idClass.put(id, classesOrdered.get(name));
 		}
+		if(d)ds.println("Registration locked");
 		
 	}
 	TreeMap<String, Field> getClassFields(Class c){
@@ -77,6 +95,8 @@ public class Manager {
 		lockRegistration();
 		Class c = f.getType();
 		
+		if(d)ds.println(String.format("Serializing field \"%s\" type \"%s\"", f.getName(), c.getName()));
+
 		try {
 			if(c.equals(boolean.class)){
 				NumberSerializer.writeBoolean(f.getBoolean(o), stream);
@@ -115,6 +135,8 @@ public class Manager {
 		Class c = o.getClass();
 		
 		try {
+			if(d)ds.println(String.format("Serializing class %s", c.getName()));
+			
 			stream.write(NumberSerializer.intToByteArray(classId.get(c)));
 			
 			if(c.equals(Byte.class)) {
@@ -167,7 +189,8 @@ public class Manager {
 			int serialid = NumberSerializer.byteArrayToInt(buf);
 			Class c = idClass.get(serialid);
 			if(c == null)throw new RuntimeException(String.format("Class %s hasn't been registrated", c.getName()));
-		
+			if(d)ds.println(String.format("Deserializing class %s", c.getName()));		
+
 			if(c.equals(Boolean.class))return NumberSerializer.readBoolean(stream);
 			else if(c.equals(Byte.class))return NumberSerializer.readByte(stream);
 			else if(c.equals(Short.class))return NumberSerializer.readShort(stream);
@@ -226,11 +249,12 @@ public class Manager {
 		lockRegistration();
 		PrintStream ps = new PrintStream(os);
 		Object flatObject = flattenObject(o);
-		System.out.println("Writing json");
+		if(d)ds.println("Writing json");
 		JsonMap.writeObject(flatObject, ps);
 	}
 	public Object readJson(InputStream is) throws IOException{
 		lockRegistration();
+		if(d)ds.println("Reading json");
 		InputStreamReader ir = new InputStreamReader(is);
 		Object flatObject = JsonMap.readObject(ir);
 		Object o = inflateObject(flatObject);
