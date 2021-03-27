@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
 
-import com.mariuspaavel.javautilities.Base64;
+import com.mariuspaavel.javautilities.*;
 
 
 public abstract class Database {
@@ -14,17 +14,14 @@ public abstract class Database {
 		
 	Connection c;
 	
-	
 	private Map<String, Table> tables = new HashMap<String, Table>();
-	
-	
+		
 	void addTable(Table t){
 		if(isopen)throw new RuntimeException("Cannot add table when database is already opened");
 		
 		tables.put(t.getName(), t);
 	
 	}
-	
 	
 	private boolean isopen;
 	public void open() {
@@ -254,7 +251,7 @@ public abstract class Database {
 					Class fclass = f.getType();
 					
 					if(fclass.equals(boolean.class)){
-						sb.append(f.getBoolean(o))
+						sb.append(f.getBoolean(o));
 					}
 					else if(fclass.equals(byte.class)) {
 						sb.append(f.getByte(o));
@@ -296,13 +293,13 @@ public abstract class Database {
 						ByteArrayOutputStream stream = new ByteArrayOutputStream();
 						m.ObjectToBytes(f.get(o), stream);
 						byte[] bytes = stream.toByteArray();
-						sb.append(Base64.encode(bytes));
+						sb.append(B64.encode(bytes));
 					}
 					else {
 						ByteArrayOutputStream stream = new ByteArrayOutputStream();
 						m.ObjectToBytes(f.get(o), stream);
 						byte[] bytes = stream.toByteArray();
-						sb.append(Base64.encode(bytes));
+						sb.append(B64.encode(bytes));
 					}
 				}
 				
@@ -347,70 +344,35 @@ public abstract class Database {
 			sb.append(" SET ");
 			sb.append(fieldName);
 			sb.append("=");
-
-			
+	
 			byte[] blob = null;
 			
 			try {
 				
 				Class fclass = f.getType();
-
-				if(fclass.equals(boolean.class)){
-					sb.append(f.getBoolean(o))
-				}
-				else if(fclass.equals(byte.class)) {
-					sb.append(f.getByte(o));
-				}
-				else if(fclass.equals(short.class)){
-					sb.append(f.getShort(o));
-				}
-				else if(fclass.equals(int.class)) {
-					sb.append(f.getInt(o));
-				}
-				else if(fclass.equals(long.class)) {
-					sb.append(f.getLong(o));
-				}
-				else if(fclass.equals(float.class)){
-					sb.append(f.getFloat(o));
-				}
-				else if(fclass.equals(double.class)){
-					sb.append(f.getDouble(o));
-				}
-				else if(fclass.equals(Boolean.class) 
-					|| fclass.equals(Byte.class) 
-					|| fclass.equals(Short.class) 
-					|| fclass.equals(Integer.class) 
-					|| fclass.equals(Long.class)
-					|| fclass.equals(Float.class)
-					|| fclass.equals(Double.class)
-					) {
-					sb.append(f.get(o).toString());
-				}
-			
-
-				else if(fclass.equals(String.class)) {
-					sb.append(f.get(value));
+				
+				sb.append(value.toString());
+		
+				if(fclass.isInstance(List.class)) {
+					ByteArrayOutputStream stream = new ByteArrayOutputStream();
+					m.ObjectToBytes(f.get(value), stream);
+					byte[] bytes = stream.toByteArray();
+					sb.append(B64.encode(bytes));
 				}
 				else if(fclass.equals(byte[].class)) {
 					sb.append("?");
 					blob = (byte[])f.get(value);
 				}
-				else if(fclass.isInstance(List.class)) {
-					ByteArrayOutputStream stream = new ByteArrayOutputStream();
-					m.ObjectToBytes(f.get(value), stream);
-					byte[] bytes = stream.toByteArray();
-					sb.append(Base64.encode(bytes));
+				else if(value instanceof Number || value instanceof Boolean){
+					sb.append(value.toString());
 				}
 				else {
 					ByteArrayOutputStream stream = new ByteArrayOutputStream();
-					m.ObjectToBytes(f.get(value), stream);
+					m.ObjectToBytes(value, stream);
 					byte[] bytes = stream.toByteArray();
-					sb.append(Base64.encode(bytes));
+					sb.append(B64.encode(bytes));
 				}
-				
-				
-				
-				
+
 				sb.append(" WHERE dbid=");
 				sb.append(id);
 				sb.append(";");
@@ -438,7 +400,7 @@ public abstract class Database {
 		
 		
 		
-		public T extract(int dbid) {
+		public T get(int dbid) {
 			if(!Database.this.isopen)Database.this.open();
 			String sql = String.format("SELECT * FROM %s WHERE dbid=%s;", name, dbid);
 					
@@ -480,46 +442,40 @@ public abstract class Database {
 				if(!rs.next())return null;
 				Class ftype = m.getClassFields(dataType).get(fieldName).getType();
 				
-				if(ftype.equals(boolean.class)){
+				if(ftype.equals(boolean.class) || ftype.equals(Boolean.class)){
 					return rs.getBoolean(fieldName);
 				}
-				else if(ftype.equals(byte.class)) {
+				else if(ftype.equals(byte.class) || ftype.equals(Byte.class)) {
 					return rs.getByte(fieldName);
 				}
-				else if(ftype.equals(short.class)){
+				else if(ftype.equals(short.class) || ftype.equals(Short.class)){
 					return (short)rs.getInt(fieldName);
 				}
-				else if(ftype.equals(int.class)) {
+				else if(ftype.equals(int.class) || ftype.equals(Integer.class)) {
 					return rs.getInt(fieldName);
 				}
-				else if(ftype.equals(long.class)) {
+				else if(ftype.equals(long.class) || ftype.equals(Long.class)) {
 					return rs.getLong(fieldName);
 				}
-				else if(ftype.equals(Byte.class)) {
-					return rs.getByte(fieldName);
+				else if(ftype.equals(float.class) || ftype.equals(Float.class)) {
+					return rs.getFloat(fieldName);
 				}
-				else if(ftype.equals(Integer.class)) {
+				else if(ftype.equals(double.class) || ftype.equals(Double.class)) {
 					return rs.getInt(fieldName);
-				}
-				else if(ftype.equals(Long.class)) {
-					return rs.getLong(fieldName);
-				}
-				else if(ftype.equals(String.class)) {
-					return rs.getString(fieldName);
 				}
 				else if(ftype.equals(byte[].class)) {
 					return rs.getBytes(fieldName);
 				}
 				else if(ftype.isInstance(List.class)) {
 					String b64 = rs.getString(name);
-					byte[] bytes = Base64.decode(b64);
+					byte[] bytes = B64.decode(b64);
 					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
 					List l = (List)m.bytesToObject(stream);
 					return l;
 				}
 				else {
 					String b64 = rs.getString(name);
-					byte[] bytes = Base64.decode(b64);
+					byte[] bytes = B64.decode(b64);
 					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
 					Object o = (Object)m.bytesToObject(stream);
 					return o;
@@ -541,17 +497,36 @@ public abstract class Database {
 				Field f = dTypeFields.get(name);
 				Class ftype = f.getType();
 				
-				if(ftype.equals(byte.class)) {
+
+				if(ftype.equals(boolean.class)){
+					f.setBoolean(output, rs.getByte(name) != 0);
+				}
+				else if(ftype.equals(byte.class)) {
 					f.setByte(output, rs.getByte(name));
+				}
+				else if(ftype.equals(short.class)){
+					f.setShort(output, (short)rs.getInt(name));
 				}
 				else if(ftype.equals(int.class)) {
 					f.setInt(output, rs.getInt(name));
 				}
 				else if(ftype.equals(long.class)) {
-					f.setLong(output, rs.getInt(name));
+					f.setLong(output, rs.getLong(name));
+				}
+				else if(ftype.equals(float.class)){
+					f.setFloat(output, rs.getFloat(name));
+				}
+				else if(ftype.equals(double.class)){
+					f.setDouble(output, rs.getDouble(name));
+				}
+				else if(ftype.equals(Boolean.class)){
+					f.set(output, rs.getByte(name) != 0);
 				}
 				else if(ftype.equals(Byte.class)) {
 					f.set(output, rs.getByte(name));
+				}
+				else if(ftype.equals(Short.class)){
+					f.set(output, (short)rs.getInt(name));
 				}
 				else if(ftype.equals(Integer.class)) {
 					f.set(output, rs.getInt(name));
@@ -559,6 +534,13 @@ public abstract class Database {
 				else if(ftype.equals(Long.class)) {
 					f.set(output, rs.getLong(name));
 				}
+				else if(ftype.equals(Float.class)){
+					f.set(output, rs.getFloat(name));
+				}
+				else if(ftype.equals(Double.class)){
+					f.set(output, rs.getDouble(name));
+				}
+
 				else if(ftype.equals(String.class)) {
 					f.set(output, rs.getString(name));
 				}
@@ -567,14 +549,14 @@ public abstract class Database {
 				}
 				else if(ftype.isInstance(List.class)) {
 					String b64 = rs.getString(name);
-					byte[] bytes = Base64.decode(b64);
+					byte[] bytes = B64.decode(b64);
 					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
 					List l = (List)m.bytesToObject(stream);
 					f.set(output, l);
 				}
 				else {
 					String b64 = rs.getString(name);
-					byte[] bytes = Base64.decode(b64);
+					byte[] bytes = B64.decode(b64);
 					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
 					Object o = (Object)m.bytesToObject(stream);
 					f.set(output, o);

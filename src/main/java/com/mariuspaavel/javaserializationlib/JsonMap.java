@@ -50,13 +50,14 @@ public class JsonMap{
 		}
 		return sb.toString();
 	}
-	private static Number readNumber(InputStreamReader is, char firstDigit){
-		StringBuilder sb = new StringBuilder(firstDigit);
+	private static Number readNumber(InputStreamReader is, char firstDigit) throws IOException{
+		StringBuilder sb = new StringBuilder();
+		sb.append(firstDigit);
 		char c = 0;
 		while(numChars(c = (char)is.read())){
 			sb.append(c);
 		}
-		String s = sb.toString().lower();
+		String s = sb.toString().toLowerCase();
 		if(s.contains(".") || s.contains("e")){
 			return new Double(s);
 		}
@@ -82,7 +83,7 @@ public class JsonMap{
 			default: return false;
 		}
 	}
-	private static boolean readBoolean(InputStreamReader is, char firstDigit){
+	private static boolean readBoolean(InputStreamReader is, char firstDigit) throws IOException{
 		final String trueSequence = "true";
 		final String falseSequence = "false";
 		char c = Character.toLowerCase(firstDigit);
@@ -97,7 +98,7 @@ public class JsonMap{
 		
 		for(int i = 1; i < expected.length(); i++){
 			c = (char)is.read();
-			if(c != expected.charAt(i))throw new RuntimException("invalid boolean value in json");
+			if(c != expected.charAt(i))throw new RuntimeException("invalid boolean value in json");
 		}
 		return expected == trueSequence;
 	}

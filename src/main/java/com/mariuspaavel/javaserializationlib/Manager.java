@@ -6,7 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.io.*;
 
-import com.mariuspaavel.juvautilities.*;
+import com.mariuspaavel.javautilities.*;
 
 
 public class Manager {
@@ -79,7 +79,7 @@ public class Manager {
 		
 		try {
 			if(c.equals(boolean.class)){
-				NumberSerilizer.writeBoolean(f.getBoolean(o), stream);
+				NumberSerializer.writeBoolean(f.getBoolean(o), stream);
 			}
 			else if(c.equals(byte.class)) {
 				NumberSerializer.writeByte(f.getByte(o), stream);
@@ -91,8 +91,15 @@ public class Manager {
 				NumberSerializer.writeInt(f.getInt(o), stream);
 			}
 			else if(c.equals(long.class)) {
-				NumberSerilizer.writeLong(f.getLong(o), stream);
+				NumberSerializer.writeLong(f.getLong(o), stream);
 			}
+			else if(c.equals(float.class)){
+				NumberSerializer.writeFloat(f.getFloat(o), stream);
+			}
+			else if(c.equals(double.class)){
+				NumberSerializer.writeDouble(f.getDouble(o), stream);
+			}
+			
 			else {
 				ObjectToBytes(f.get(o), stream);
 			}
@@ -108,30 +115,30 @@ public class Manager {
 		Class c = o.getClass();
 		
 		try {
-			stream.write(intToByteArray(classId.get(c)));
+			stream.write(NumberSerializer.intToByteArray(classId.get(c)));
 			
 			if(c.equals(Byte.class)) {
 				stream.write(new byte[] {(Byte)o});
 			}
 			else if(c.equals(Integer.class)) {
-				stream.write(intToByteArray((Integer)o));
+				stream.write(NumberSerializer.intToByteArray((Integer)o));
 			}
 			else if(c.equals(Long.class)) {
-				stream.write(longToByteArray((Long)o));
+				stream.write(NumberSerializer.longToByteArray((Long)o));
 			}
 			else if(c.equals(String.class)) {
 				byte[] strbytes = ((String)o).getBytes();
-				stream.write(intToByteArray(strbytes.length));
+				stream.write(NumberSerializer.intToByteArray(strbytes.length));
 				stream.write(strbytes);
 			}
 			else if(c.equals(byte[].class)) {
 				byte[] bytes = (byte[])o;
-				stream.write(intToByteArray(bytes.length));
+				stream.write(NumberSerializer.intToByteArray(bytes.length));
 				stream.write(bytes);
 			}
 			else if(c.isInstance(List.class)) {
 				List l = (List)o;
-				stream.write(intToByteArray(l.size()));
+				stream.write(NumberSerializer.intToByteArray(l.size()));
 				for(Object elem : l) {
 					ObjectToBytes(elem, stream);
 				}
@@ -157,14 +164,14 @@ public class Manager {
 		byte[] buf = new byte[4];
 		try {
 			stream.read(buf);
-			int serialid = byteArrayToInt(buf);
+			int serialid = NumberSerializer.byteArrayToInt(buf);
 			Class c = idClass.get(serialid);
 			if(c == null)throw new RuntimeException(String.format("Class %s hasn't been registrated", c.getName()));
 		
 			if(c.equals(Boolean.class))return NumberSerializer.readBoolean(stream);
 			else if(c.equals(Byte.class))return NumberSerializer.readByte(stream);
 			else if(c.equals(Short.class))return NumberSerializer.readShort(stream);
-			else if(c.equals(Integer.class))return NumberSerilizer.readInt(stream);
+			else if(c.equals(Integer.class))return NumberSerializer.readInt(stream);
 			else if(c.equals(Long.class))return NumberSerializer.readLong(stream);
 			else if(c.equals(String.class)) {
 				int length = NumberSerializer.readInt(stream);
@@ -196,13 +203,13 @@ public class Manager {
 						stream.read(buf);
 						f.setByte(o, buf[0]);
 					}
-					if(f.getType().equals(boolean.class))f.setBoolean(o, NumberSerilizer.readBoolean(stream));
-					else if(f.getType().equals(byte.class))f.setByte(o, NumberSerilizer.readByte(stream));
+					if(f.getType().equals(boolean.class))f.setBoolean(o, NumberSerializer.readBoolean(stream));
+					else if(f.getType().equals(byte.class))f.setByte(o, NumberSerializer.readByte(stream));
 					else if(f.getType().equals(short.class))f.setShort(o, NumberSerializer.readShort(stream));
 					else if(f.getType().equals(int.class))f.setInt(o, NumberSerializer.readInt(stream));
-					else if(f.getType().equals(long.class))f.setLong(o, NumberSerilizer.readLong(stream));
-					else if(f.getType().equals(float.class))f.setFloat(o, NumberSerilizer.readFloat(stream));
-					else if(f.getType().equals(double.class))f.setDouble(o, NumberSerilizer.readDouble(stream));
+					else if(f.getType().equals(long.class))f.setLong(o, NumberSerializer.readLong(stream));
+					else if(f.getType().equals(float.class))f.setFloat(o, NumberSerializer.readFloat(stream));
+					else if(f.getType().equals(double.class))f.setDouble(o, NumberSerializer.readDouble(stream));
 					else {
 						bytesToObject(stream);
 					}
@@ -250,7 +257,7 @@ public class Manager {
 				else if(fieldType.equals(short.class))map.put(s, new Long(f.getShort(o)));
 				else if(fieldType.equals(int.class))map.put(s, new Long(f.getInt(o)));
 				else if(fieldType.equals(long.class))map.put(s, f.getLong(o));
-				else if(fieldType.equals(float.class)map.put(s, new Double(f.getFloat(o)));
+				else if(fieldType.equals(float.class))map.put(s, new Double(f.getFloat(o)));
 				else if(fieldType.equals(double.class))map.put(s, f.getDouble(o));
 
 				map.put(s, flattenObject(f.get(o)));
@@ -270,7 +277,7 @@ public class Manager {
 		return outputList;
 
 	}
-	private Number flattenNumber(Number inputNumber){
+	private Object flattenNumber(Object inputNumber){
 		Class type = inputNumber.getClass();	
 
 		if(inputNumber instanceof Byte){
@@ -282,17 +289,18 @@ public class Manager {
 		}else if(inputNumber instanceof Long){
 			return inputNumber;
 		}else if(inputNumber instanceof Float){
-			return new Float(inputNumber.floatValue());
+			return new Double(((Float)inputNumber).floatValue());
 		}else if(inputNumber instanceof Double){
-			return new Long(inputNumber.doubleValue());
+			return inputNumber;
 		}else if(inputNumber instanceof Boolean){
-			return inputNumber
+			return inputNumber;
 		}
+		else throw new RuntimeException(String.format("Error flattening number: %s is not a numeral type", inputNumber.getClass().toString()));
 	}
 	private Object flattenObject(Object inputObject){
 		if(inputObject instanceof String)return inputObject;	
 		else if(inputObject instanceof List)return flattenList((List)inputObject);
-		else if(inputObject instanceof Number)
+		else if(inputObject instanceof Number)return flattenNumber((Number)inputObject);
 		else if(classId.containsKey(inputObject.getClass()))return flattenClass(inputObject);
 		else return inputObject.toString();
 	}
@@ -319,11 +327,11 @@ public class Manager {
 
 				if(fieldType.equals(byte.class))field.setByte(output, (byte)((Long)inputObject).longValue());
 				else if(fieldType.equals(short.class))field.setShort(output, (short)((Long)inputObject).longValue());
-				else if(fieldType.equals(int.class))field.setInt(output, (int)((Long)inputObject.longValue());
+				else if(fieldType.equals(int.class))field.setInt(output, (int)((Long)inputObject).longValue());
 				else if(fieldType.equals(long.class))field.setLong(output, ((Long)inputObject).longValue());
 				else if(fieldType.equals(float.class))field.setFloat(output, (float)((Double)inputObject).doubleValue());
 				else if(fieldType.equals(double.class))field.setDouble(output, ((Double)inputObject).doubleValue());
-				else if(fieldType.equals(boolean.class))field.setBoolean(output, (Boolean)inputObject.booleanValue());
+				else if(fieldType.equals(boolean.class))field.setBoolean(output, ((Boolean)inputObject).booleanValue());
 
 				else if(fieldType.equals(Byte.class))field.set(output, new Byte((byte)((Long)inputObject).longValue()));
 				else if(fieldType.equals(Short.class))field.set(output, new Short((short)((Long)inputObject).longValue()));
