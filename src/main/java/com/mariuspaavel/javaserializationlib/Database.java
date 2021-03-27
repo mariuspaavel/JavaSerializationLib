@@ -9,8 +9,14 @@ import java.util.*;
 import com.mariuspaavel.javautilities.*;
 
 
-public abstract class Database {
-	private static Database instance;
+/**
+*A SQLite database that saves special serializable objects.
+* An object that is inserted to a database msut meet three conditions:
+* 1) It must implement the DBObject interface.
+* 2) It must be registrated to the Manager class
+* 3) It's defining fields msut be marked with the S annotation
+*/
+public class Database {
 		
 	Connection c;
 	
@@ -24,6 +30,11 @@ public abstract class Database {
 	}
 	
 	private boolean isopen;
+
+	/**
+	*Ends the initialization phase of the database.
+	* No more tables can be created after that.
+	*/
 	public void open() {
 		if(isopen)return;
 		c = createDB(getName());
@@ -68,18 +79,34 @@ public abstract class Database {
 	}
 	
 	private Manager mg;
-	protected Database(Manager mg) {
+	
+	/**
+	*Start the initialization phase of the database.
+	* @param name The name of the database.
+	* @param mg The manager class using which classes are serialized to blobs when needed.
+	*/
+	
+	private String name;
+	public Database(String name, Manager mg) {
+		this.name = name;
 		this.mg = mg;
 	}
 	
+	/**
+	*Get the name of the database.
+	*/
 	public String getName() {
-		return getClass().getName();
+		return name;
 	}
 	
 	
 	
 	public class Table <T extends DBObject> {
 		private String name;
+		
+		/**
+		*Get the name of the database
+		*/
 		public String getName() {
 			return name;
 		}
@@ -87,7 +114,15 @@ public abstract class Database {
 		private Class dataType;
 		private Manager m;
 		
-	
+		
+		/**
+		*Add a table to the database.
+		* A table can only be added during the initialization phase.
+		* A table constructor msut only be provided the name of the table and the datatype. The database class will take care of the rest (Table creation, opening etc.).
+		* @param name The name of the table.
+		* @param dataType the class of the object that this table contains. When a table is created with this datatype, it can only accept objects of this datatype 
+		* (subclasses not included)
+		*/
 		public Table(String name, Class dataType) {
 			if(Database.this.isopen) {
 				throw new RuntimeException("Error: A new table cannot be opened when database is already open");
@@ -213,6 +248,10 @@ public abstract class Database {
 		}
 		
 		
+		/**
+		*Insert an object to the database.
+		* @param o the object that is going to be inserted.
+		*/
 		public void insert(DBObject o) {
 			if(!Database.this.isopen)Database.this.open();
 			
@@ -329,7 +368,12 @@ public abstract class Database {
 			}
 		}
 		
-		
+		/**
+		*Set 1 field of an object in a table.
+		* @param id The primary key id of the object in that table.
+		* @param fieldName The field to be changed.
+		* @param value The new value for this field.
+		*/
 		public void setField(int id, String fieldName, Object value)  {
 			if(!Database.this.isopen)Database.this.open();
 				
@@ -398,7 +442,10 @@ public abstract class Database {
 			}
 		}
 		
-		
+		/**
+		*Gets an object from the database given the primary key id contained in the DBObjectMeta class
+		* @Param dbid The primary key id contained in the DBObjectMeta class.
+		*/
 		
 		public T get(int dbid) {
 			if(!Database.this.isopen)Database.this.open();
@@ -414,6 +461,12 @@ public abstract class Database {
 			
 		}
 		
+		/**
+		*Queries objects from the table that meet a specific contition.
+		* The SQL query is formed as: "SELECT * FROM [table name] WHERE [contition string]."
+		* @param condition the String that contains the standard SQL query after the "WHERE" keyword.
+		* @return An ArrayList containing the query results.
+		*/		
 
 		public ArrayList<T> query(String condition)  {
 			if(!Database.this.isopen)Database.this.open();
@@ -436,6 +489,12 @@ public abstract class Database {
 			return output;
 		}
 		
+		/**
+		*Gets one specific field from an object in the table.
+		* @param id The primary key id of the object in the database. =
+		* @param fieldName The name of the field that is asked.
+		* @return The content of the field as an obejct. if the field is a primitive, then it's wrapped.
+		*/
 		
 		public Object getField(int id, String fieldName) {
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(String.format("SELECT %s FROM %s WHERE dbid=%d", name, fieldName, id));) {
@@ -566,7 +625,10 @@ public abstract class Database {
 
 		}
 		
-		
+		/**
+		*Deletes an object from a database given the primary key id.
+		* @param id the primary key id of the object.
+		*/
 		
 		public void delete(int id) {
 			if(!Database.this.isopen)Database.this.open();
@@ -579,6 +641,12 @@ public abstract class Database {
 				throw new RuntimeException(e.getMessage());
 			}
 		}
+		/**
+		* Deletes all the obejcts that meet a certain condition.
+		* The delete query string is constructed as: 
+		* DELETE * FROM [table name] WHERE [condition string].
+		* @param condition The SQL query string that describes the delete condidtion.
+		*/
 		public void delete(String condition) {
 			if(!Database.this.isopen)Database.this.open();
 			String query = String.format("DELETE FROM %s WHERE %s;", name, condition);

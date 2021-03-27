@@ -1,7 +1,10 @@
 package com.mariuspaavel.javaserializationlib;
 
+/**
+*An exception that is thrown when the data that is deserialized is invalid.
+*/
 public class SerializationException extends RuntimeException {
-	public SerializationException(String message) {
+	SerializationException(String message) {
 		super(message);
 	}
 }

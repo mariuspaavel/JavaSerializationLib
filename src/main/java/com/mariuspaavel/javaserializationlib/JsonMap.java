@@ -1,62 +1,99 @@
 package com.mariuspaavel.javaserializationlib;
 import java.util.*;
 import java.io.*;
-public class JsonMap{
-	private static Map<String, Object> readMap(InputStreamReader is) throws IOException{
-		//System.out.println("Reading map");
+class JsonMap{
+	boolean d = false;
+	PrintStream ds = System.out;	
+
+	private char c = 0;
+	private InputStreamReader is = null;
+	private PrintStream ps = null;
+
+	private Map<String, Object> readMap() throws IOException{
+		if(d)ds.println("Reading map");
+		if(c != '{')throw new RuntimeException(String.format("Invalid map object start '%c'", c));
+		c = (char)is.read();
 		Map<String, Object> result = new HashMap<String, Object>();
+		boolean expectNext = false;
 		outer:while(true){
-			char c = (char)is.read();
+			if(Character.isWhitespace(c)){
+				c = (char)is.read();
+				continue;
+			}
 			switch(c){
 				case '}': {
-					//System.out.println("Reached the end of map");
+					if(expectNext)throw new RuntimeException("Expected next object after ','");
+					if(d)ds.println("Reached the end of map");
 					break outer;
 				} 
 				case '\"': 
-					String name = readString(is);
-					Object o = readObject(is);
+					String name = readString();
+					while(true){
+						c = (char)is.read();
+						if(Character.isWhitespace(c))continue;
+						else if(c == ':')break;
+						else throw new RuntimeException("Invalid json map: no ':' character between key and value");
+					}
+					c = (char)is.read();
+					while(Character.isWhitespace(c))c = (char)is.read();
+					Object o = readObject();
+					if(!(o instanceof Number))c = (char)is.read();	
+					while(Character.isWhitespace(c))c = (char)is.read();
+					if(c == ','){
+						expectNext = true;
+						c = (char)is.read();
+					}
+					else expectNext = false;
 					result.put(name, o);
 					break;
-				default: continue outer;
+				default: throw new RuntimeException(String.format("Unexpected character '%c'", c));
 			}
 		}
 		return result;
 	}
-	private static List<Object> readList(InputStreamReader is) throws IOException{
-		//System.out.println("Reading list");
+	private List<Object> readList() throws IOException{
+		if(d)ds.println("Reading list");
+		if(c != '[')throw new RuntimeException("Invalid list start position (must start with '[')");
 		List<Object> list = new ArrayList<Object>();
+		boolean expectNext = false;
 		while(true){
-			char c = (char)is.read();
-			if(c == ']'){
-				//System.out.println("Reached the end of list");
+			c = (char)is.read();
+			if(Character.isWhitespace(c))continue;
+			Object o = readObject();			
+			if(o != null){
+				expectNext = false;
+				list.add(o);
+				if(!(o instanceof Number))c = (char)is.read();
+				while(Character.isWhitespace(c))c = (char)is.read();
+			}else if(expectNext)throw new RuntimeException("Invalid json list");
+			if(c == ',')expectNext = true;
+			else if(c == ']'){
+				if(d)ds.println("Reached the end of list");
 				return list;
 			}
-			Object o = readObject(is);
-			if(o == null)break;
-			else list.add(o);
 		}
-		return list;
 	}
-	private static String readString(InputStreamReader is) throws IOException{
-		//System.out.println("Reading String");
+	private String readString() throws IOException{
+		if(d)ds.println("Reading String");
+		if(c != '\"')throw new RuntimeException("Invalid string start position (must start with '\"')");
 		StringBuilder sb = new StringBuilder();
 		while(true){
-			char c = (char)is.read();
+			c = (char)is.read();
 			if(c == '\"'){
-				//System.out.println("Reached the end of string");
+				if(d)ds.println("Reached the end of string");
 				break;
 			}
 			sb.append(c);
 		}
 		return sb.toString();
 	}
-	private static Number readNumber(InputStreamReader is, char firstDigit) throws IOException{
+	private Number readNumber() throws IOException{
+		if(d)ds.println("Reading number");
 		StringBuilder sb = new StringBuilder();
-		sb.append(firstDigit);
-		char c = 0;
-		while(numChars(c = (char)is.read())){
+		do{
 			sb.append(c);
-		}
+		}while(numChars(c = (char)is.read()));
+
 		String s = sb.toString().toLowerCase();
 		if(s.contains(".") || s.contains("e")){
 			return new Double(s);
@@ -64,29 +101,14 @@ public class JsonMap{
 		else return new Long(s);
 	}
 	private static boolean numChars(char c){
-		switch(c){
-			case '0':
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-			case '.':
-			case '-':
-			case 'e':
-			case 'E':
-			return true;
-			default: return false;
-		}
+		if(Character.isDigit(c) || c == '.' || c == 'e' || c == 'E')return true;	
+		else return false;
 	}
-	private static boolean readBoolean(InputStreamReader is, char firstDigit) throws IOException{
+	private boolean readBoolean() throws IOException{
+		if(d)ds.println("Reading boolean");
 		final String trueSequence = "true";
 		final String falseSequence = "false";
-		char c = Character.toLowerCase(firstDigit);
+		c = Character.toLowerCase(c);
 		String expected = null;
 		if(c == 't'){
 			expected = trueSequence;
@@ -97,59 +119,66 @@ public class JsonMap{
 		else throw new RuntimeException("invalid boolean value in json");
 		
 		for(int i = 1; i < expected.length(); i++){
-			c = (char)is.read();
+			c = Character.toLowerCase((char)is.read());
 			if(c != expected.charAt(i))throw new RuntimeException("invalid boolean value in json");
 		}
+		if(d)ds.println("Reached the end of boolean");
 		return expected == trueSequence;
 	}
-	public static Object readObject(InputStreamReader is)throws IOException{
-		while(true){
+	private Object readObject()throws IOException{
+		
+		if(Character.isDigit(c))return readNumber();
 			
-			char c = (char)is.read();
-			switch(c){
-				case '{': return readMap(is);
-				case '[': return readList(is);
-				case '\"': return readString(is);
-				case '}': return null;
-				case ']': return null;
-				case 't': return readBoolean(is, c);
-				case 'f': return readBoolean(is, c);
-				default: 
-				if(numChars(c))return readNumber(is, c);
-				else continue;
-			}
+		switch(c){
+			case '{': return readMap();
+			case '[': return readList();
+			case '\"': return readString();
+			case 't': return readBoolean();
+			case 'f': return readBoolean();
+			case '.': return readNumber();
+			default: return null;
 		}
+	
 	}
-	private static void writeString(String s, PrintStream ps, boolean indent, int depth) throws IOException{
+	public Object readObject(InputStreamReader is)throws IOException{
+		this.is = is;
+		c = (char)is.read();
+		while(Character.isWhitespace(c))c = (char)is.read();
+		return readObject();
+	}
+	private void writeString(String s, boolean indent, int depth) throws IOException{
+		if(d)ds.println("Writing string");
 		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('\"');
 		ps.print(s);
 		ps.print('\"');
 	}
-	private static void writeMap(Map<String, Object> m, PrintStream ps, boolean indent, int depth) throws IOException{
+	private void writeMap(Map<String, Object> m, boolean indent, int depth) throws IOException{
+		if(d)ds.println("Writing map");
 		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('{');
 		ps.print('\n');
 		for(Iterator<String> iter = m.keySet().iterator(); iter.hasNext();){
 			String s = iter.next();
-			writeString(s, ps, true, depth+1);
+			writeString(s, true, depth+1);
 			ps.print(':');
 			ps.print(' ');
 			Object o = m.get(s);
-			writeObject(o, ps, false, depth+1);
+			writeObject(o, false, depth+1);
 			if(iter.hasNext())ps.print(',');
 			ps.print('\n');
 		}
 		for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('}');	
 	}
-	private static void writeList(List<Object> l, PrintStream ps, boolean indent, int depth) throws IOException{
+	private void writeList(List<Object> l, boolean indent, int depth) throws IOException{
+		if(d)ds.println("Writing list");
 		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('[');
 		ps.print('\n');
 		for(Iterator<Object> iter = l.iterator(); iter.hasNext();){
 			Object o = iter.next();
-			writeObject(o, ps, true, depth+1);
+			writeObject(o, true, depth+1);
 			if(iter.hasNext())ps.print(',');
 			ps.print('\n');
 		}
@@ -157,23 +186,27 @@ public class JsonMap{
 		ps.print(']');
 
 	}
-	private static void writeBoolean(Boolean b, PrintStream ps, boolean indent, int depth){
+	private void writeBoolean(Boolean b, boolean indent, int depth){
+		if(d)ds.println("Writing boolean");
 		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print(b.toString());
 	}
-	private static void writeNumber(Number n, PrintStream ps, boolean indent, int depth){
+	private void writeNumber(Number n, boolean indent, int depth){
+		if(d)ds.println("Writing number");
 		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print(n.toString());
 	}
-	private static void writeObject(Object o, PrintStream ps, boolean indent, int depth) throws IOException{
+	private void writeObject(Object o, boolean indent, int depth) throws IOException{
+		if(d)ds.println("Writing object");
 		Class cl = o.getClass();
-		if(o instanceof List)writeList((List)o, ps, indent, depth);
-		else if(o instanceof Map)writeMap((Map)o, ps, indent, depth);
-		else if(o instanceof Number)writeNumber((Number)o, ps, indent, depth);
-		else if(o instanceof Boolean)writeBoolean((Boolean)o, ps, indent, depth);
-		else writeString(o.toString(), ps, indent, depth);
+		if(o instanceof List)writeList((List)o, indent, depth);
+		else if(o instanceof Map)writeMap((Map)o, indent, depth);
+		else if(o instanceof Number)writeNumber((Number)o, indent, depth);
+		else if(o instanceof Boolean)writeBoolean((Boolean)o, indent, depth);
+		else writeString(o.toString(), indent, depth);
 	}
-	public static void writeObject(Object o, PrintStream ps) throws IOException{
-		writeObject(o, ps, false, 0);
+	public void writeObject(Object o, PrintStream ps) throws IOException{
+		this.ps = ps;
+		writeObject(o, false, 0);
 	}
 }

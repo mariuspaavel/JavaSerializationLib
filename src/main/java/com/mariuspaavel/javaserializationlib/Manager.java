@@ -9,11 +9,28 @@ import java.io.*;
 import com.mariuspaavel.javautilities.*;
 
 
+/**
+* A class that handles the serialization and deserialization of objects. 
+* The fields of a class that is to be serialized/deserialized by this class must be marked with the @S annotation.
+* The Manager class has two states: the init state and the working state. During the init state, all classes that this class
+* will serialize will have to be passed to the register method. The working state begins when first object is serialized or
+* deserialized using this class. After that, no more classes can be registrated. This manager generates an id for every class 
+* that is registrated. The id based on the alphabetical order of classes registrated. In order to have working results when 
+* transmitting an object from one machine to another, the exact same set of classes must be registrated on both machines.
+*/
+
 public class Manager {
+	
 	private HashMap<Class, TreeMap<String, Field>> classInfo = new HashMap<Class, TreeMap<String, Field>>();
 	private TreeMap<String, Class> classesOrdered = new TreeMap<String, Class>();
+	
+	/**
+	*Register a class during th init phase.
+	*A class cannot be serialized or deserialized without registrating it.
+	*/
+
 	public void register(Class c) {
-		if(registrationLocked)return;
+		if(registrationLocked)throw new RuntimeException("Classes can only be registrated on the init phase");
 		TreeMap<String, Field> classFields = new TreeMap<String, Field>();
 		for(Field field  : c.getDeclaredFields())
 		{
@@ -24,17 +41,28 @@ public class Manager {
 		}
 		classInfo.put(c, classFields);
 		classesOrdered.put(c.getName(), c);
-		if(d)ds.println(String.format("Registrated class %s"));
+		if(d)ds.println(String.format("Registrated class %s", c.getName()));
 	}
 	
 	private boolean d = false;
 	PrintStream ds = System.out;
-	public void turnOnDebugPrint(){
+
+	/**
+	*Turn on debug printing.
+	*/
+	public void debugOn(){
 		d = true;
 	}
-	public void turnOffDebugPrint(){
+	/**
+	*Turn off debug printing.
+	*/
+	public void debugOff(){
 		d = false;
 	}
+	/**
+	*Change where debug is printed. Default value is System.out
+	*@param stream The PrintStream where debug is printed.
+	*/
 	public void setDebugPrintStream(PrintStream stream){
 		ds = stream;	
 	}
@@ -47,7 +75,13 @@ public class Manager {
 
 	
 	private boolean registrationLocked = false;
-	public void lockRegistration() {
+	
+	/**
+	*End the initialization phase of the manager.
+	* After that no more classes can be registrated. This method triggers automatically when an object is passed to the serialization or deserialization methods.
+	*/
+
+	public void lockInitialization() {
 		if(registrationLocked)return;
 		registrationLocked = true;
 		
@@ -91,8 +125,8 @@ public class Manager {
 	}
 	
 	
-	public void fieldToBytes(Field f, Object o, ByteArrayOutputStream stream)  {
-		lockRegistration();
+	private void fieldToBytes(Field f, Object o, OutputStream stream)  {
+		lockInitialization();
 		Class c = f.getType();
 		
 		if(d)ds.println(String.format("Serializing field \"%s\" type \"%s\"", f.getName(), c.getName()));
@@ -129,9 +163,16 @@ public class Manager {
 		}
 		
 	}
-	
-	public void ObjectToBytes(Object o, ByteArrayOutputStream stream) {
-		lockRegistration();
+		
+	/**
+	*Write an object to an output stream as octets.
+	* In order for this method to work, the class must be registrated and have to be serialized fields marked with the @S annotation
+	* @param o The object that is to be serialized.
+	* @param stream The OutputStream where the object is written.
+	*/
+
+	public void ObjectToBytes(Object o, OutputStream stream) {
+		lockInitialization();
 		Class c = o.getClass();
 		
 		try {
@@ -179,9 +220,15 @@ public class Manager {
 		}
 	}
 	
+	/**
+	*Deserializes an octet stream to an object.
+	* In order for this to work, to be serialized fields must be marked by the @S annotation and the object must be registrated.
+	* @param stream The stream from which the object is read.
+	* @return The deserialized object.
+	*/
 	
-	public Object bytesToObject(ByteArrayInputStream stream) {
-		lockRegistration();
+	public Object bytesToObject(InputStream stream) {
+		lockInitialization();
 		
 		byte[] buf = new byte[4];
 		try {
@@ -244,26 +291,51 @@ public class Manager {
 			throw new SerializationException(e.getMessage());
 		}
 	}
+
+	private JsonMap jsonInstance;
+	private JsonMap getJsonInstance(){
+		if(jsonInstance != null)return jsonInstance;
+		else{
+			jsonInstance = new JsonMap();
+			jsonInstance.d = d;
+			jsonInstance.ds = ds;
+			return jsonInstance;
+		}
+	}
+	
+	/**
+	*Writes an object to an output stream as JSON. 
+	* The class name is included as a "className" value and it is the full name of the class including the package.
+	* In order for this to work, to be serialized fields must be marked with the @S annotation and the class must be registrated.
+	* @param o The object to be registrated.
+	* @param os The stream where the JSON object is written.
+	*/	
 	
 	public void writeJson(Object o, OutputStream os) throws IOException{
-		lockRegistration();
+		lockInitialization();
 		PrintStream ps = new PrintStream(os);
 		Object flatObject = flattenObject(o);
 		if(d)ds.println("Writing json");
-		JsonMap.writeObject(flatObject, ps);
+		getJsonInstance().writeObject(flatObject, ps);
 	}
+	
+	/**
+	*Reads a JSON object from an input stream.
+	* The class name must be included as a "className" value that is assigned the full name of the class including the package.
+	* In order for this to work, to be serialized fields must be marked with the @S annotation and the class must be registrated.	
+	*/
 	public Object readJson(InputStream is) throws IOException{
-		lockRegistration();
+		lockInitialization();
 		if(d)ds.println("Reading json");
 		InputStreamReader ir = new InputStreamReader(is);
-		Object flatObject = JsonMap.readObject(ir);
+		Object flatObject = getJsonInstance().readObject(ir);
 		Object o = inflateObject(flatObject);
 		return o;
 	}
 
 
 	private Map<String, Object> flattenClass(Object o){
-		System.out.println("Flattening class");
+		if(d)ds.println("Flattening class");
 		Map<String, Object> map = new HashMap<String, Object>();
 		Class cl = o.getClass();
 		TreeMap<String, Field> fields = getClassFields(cl);
@@ -322,6 +394,7 @@ public class Manager {
 		else throw new RuntimeException(String.format("Error flattening number: %s is not a numeral type", inputNumber.getClass().toString()));
 	}
 	private Object flattenObject(Object inputObject){
+		if(d)ds.println("flattening object");
 		if(inputObject instanceof String)return inputObject;	
 		else if(inputObject instanceof List)return flattenList((List)inputObject);
 		else if(inputObject instanceof Number)return flattenNumber((Number)inputObject);
@@ -330,8 +403,11 @@ public class Manager {
 	}
 
 	private Object inflateClass(Map<String, Object> input){
+		if(d)ds.println("inflating class");
 		String className = (String)input.get("className");
+		if(d)ds.println(String.format("Class name: %s", className));
 		Class cl = classesOrdered.get(className);
+		if(cl == null)throw new RuntimeException(String.format("Class \"%s\" not registrated", className));
 		Object output = null;
 		try{
 			output = cl.getDeclaredConstructor().newInstance();
@@ -374,9 +450,11 @@ public class Manager {
 			e.printStackTrace();
 			throw new RuntimeException("Failed to inflate class");
 		}
+		if(d)ds.println("Inflating class finished");
 		return output;
 	}
 	private List<Object> inflateList(List<Object> inputList){
+		if(d)ds.println("Inflating list");
 		List<Object> output = new ArrayList<Object>();
 		for(Object o : inputList){
 			output.add(inflateObject(o));
@@ -384,6 +462,7 @@ public class Manager {
 		return output;
 	}
 	private Object inflateObject(Object input){
+		if(d)ds.println("Inflating object");
 		if(input instanceof Map)return inflateClass((Map<String, Object>)input);
 		else if(input instanceof List)return inflateList((List)input);
 		else return input; 
