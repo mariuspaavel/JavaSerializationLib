@@ -173,11 +173,18 @@ public class Manager {
 
 	public void ObjectToBytes(Object o, OutputStream stream) {
 		lockInitialization();
-		Class c = o.getClass();
 		
 		try {
-			if(d)ds.println(String.format("Serializing class %s", c.getName()));
+			if(o == null){
+				stream.write(0);
+				return;
+			}
+			Class c = o.getClass();
 			
+			if(d)ds.println(String.format("Serializing class %s", c.getName()));
+		
+			Integer inputClassId = classId.get(c);
+			if(inputClassId == null)throw new RuntimeException(String.format("Class %s hasn't been registrated.", c.getName()));	
 			stream.write(NumberSerializer.intToByteArray(classId.get(c)));
 			
 			if(c.equals(Byte.class)) {
@@ -234,8 +241,9 @@ public class Manager {
 		try {
 			stream.read(buf);
 			int serialid = NumberSerializer.byteArrayToInt(buf);
+			if(serialid == 0)return null;
 			Class c = idClass.get(serialid);
-			if(c == null)throw new RuntimeException(String.format("Class %s hasn't been registrated", c.getName()));
+			if(c == null)throw new RuntimeException(String.format("No class registrated with an id of %d", serialid));
 			if(d)ds.println(String.format("Deserializing class %s", c.getName()));		
 
 			if(c.equals(Boolean.class))return NumberSerializer.readBoolean(stream);
@@ -305,7 +313,6 @@ public class Manager {
 	
 	/**
 	*Writes an object to an output stream as JSON. 
-	* The class name is included as a "className" value and it is the full name of the class including the package.
 	* In order for this to work, to be serialized fields must be marked with the @S annotation and the class must be registrated.
 	* @param o The object to be registrated.
 	* @param os The stream where the JSON object is written.
@@ -395,7 +402,8 @@ public class Manager {
 	}
 	private Object flattenObject(Object inputObject){
 		if(d)ds.println("flattening object");
-		if(inputObject instanceof String)return inputObject;	
+		if(inputObject == null)return null;
+		else if(inputObject instanceof String)return inputObject;	
 		else if(inputObject instanceof List)return flattenList((List)inputObject);
 		else if(inputObject instanceof Number)return flattenNumber((Number)inputObject);
 		else if(classId.containsKey(inputObject.getClass()))return flattenClass(inputObject);
@@ -424,7 +432,7 @@ public class Manager {
 				if(inputObject == null)continue;
 				Field field = cinf.get(fieldName);
 				Class fieldType = field.getType();
-
+				
 				if(fieldType.equals(byte.class))field.setByte(output, (byte)((Long)inputObject).longValue());
 				else if(fieldType.equals(short.class))field.setShort(output, (short)((Long)inputObject).longValue());
 				else if(fieldType.equals(int.class))field.setInt(output, (int)((Long)inputObject).longValue());
@@ -432,18 +440,21 @@ public class Manager {
 				else if(fieldType.equals(float.class))field.setFloat(output, (float)((Double)inputObject).doubleValue());
 				else if(fieldType.equals(double.class))field.setDouble(output, ((Double)inputObject).doubleValue());
 				else if(fieldType.equals(boolean.class))field.setBoolean(output, ((Boolean)inputObject).booleanValue());
-
-				else if(fieldType.equals(Byte.class))field.set(output, new Byte((byte)((Long)inputObject).longValue()));
-				else if(fieldType.equals(Short.class))field.set(output, new Short((short)((Long)inputObject).longValue()));
-				else if(fieldType.equals(Integer.class))field.set(output, new Integer((int)((Long)inputObject).longValue()));
-				else if(fieldType.equals(Long.class))field.set(output, (Long)inputObject);
-				else if(fieldType.equals(Float.class))field.set(output, new Float((float)((Double)inputObject).doubleValue()));
-				else if(fieldType.equals(Double.class))field.set(output, new Double(((Double)inputObject).doubleValue()));
-				else if(fieldType.equals(Boolean.class))field.set(output, (Boolean)inputObject);
-		
+				
 				else{
-					Object inflatedObject = inflateObject(inputObject);
-					field.set(output, inflatedObject);
+					if(inputObject == null)field.set(output, null);
+					else if(fieldType.equals(Byte.class))field.set(output, new Byte((byte)((Long)inputObject).longValue()));
+					else if(fieldType.equals(Short.class))field.set(output, new Short((short)((Long)inputObject).longValue()));
+					else if(fieldType.equals(Integer.class))field.set(output, new Integer((int)((Long)inputObject).longValue()));
+					else if(fieldType.equals(Long.class))field.set(output, (Long)inputObject);
+					else if(fieldType.equals(Float.class))field.set(output, new Float((float)((Double)inputObject).doubleValue()));
+					else if(fieldType.equals(Double.class))field.set(output, new Double(((Double)inputObject).doubleValue()));
+					else if(fieldType.equals(Boolean.class))field.set(output, (Boolean)inputObject);
+			
+					else{
+						Object inflatedObject = inflateObject(inputObject);
+						field.set(output, inflatedObject);
+					}
 				}
 			}
 		}catch(IllegalAccessException e){

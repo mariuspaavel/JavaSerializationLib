@@ -51,7 +51,7 @@ public class Database {
 		isopen = true;
 	}
 	private Connection createDB(String name) {
-		System.out.println("Opening database " + getName());
+		if(ds!=null)ds.println("Opening database " + getName());
 		Connection c = null;
 		try {
 	    	 final Path datafolder = Paths.get(System.getProperty("user.home"), "data");
@@ -64,14 +64,14 @@ public class Database {
 	         //System.err.println( e.getClass().getName() + ": " + e.getMessage() );
 	         throw new RuntimeException("Unable initiate database " + getName() + e.getClass().getName() + ": " + e.getMessage());
 	      }
-	      System.out.println("Opened database " + getName() + " successfully");
+	      if(ds!=null)ds.println("Opened database " + getName() + " successfully");
 	      return c;
 	}
 	private void close() {
 		if(!isopen)return;
 		try {
 			c.close();
-			System.out.println("Closing database " + getName());
+			if(ds!=null)ds.println("Closing database " + getName());
 			isopen = false;
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -79,18 +79,25 @@ public class Database {
 	}
 	
 	private Manager mg;
-	
+	private String name;	
+
 	/**
 	*Start the initialization phase of the database.
 	* @param name The name of the database.
 	* @param mg The manager class using which classes are serialized to blobs when needed.
 	*/
 	
-	private String name;
-	public Database(String name, Manager mg) {
+	public Database(String name, Manager mg, PrintStream ds) {
 		this.name = name;
 		this.mg = mg;
+		this.ds = ds;
 	}
+	
+	public Database(String name, Manager mg){
+		this(name, mg, null);
+	}
+
+	PrintStream ds;
 	
 	/**
 	*Get the name of the database.
@@ -112,7 +119,6 @@ public class Database {
 		}
 		
 		private Class dataType;
-		private Manager m;
 		
 		
 		/**
@@ -142,14 +148,16 @@ public class Database {
 		
 		private void create() throws SQLException {
 			StringBuilder sb = new StringBuilder();
-			TreeMap<String, Field> fc = m.getClassFields(dataType);
+			TreeMap<String, Field> fc = mg.getClassFields(dataType);
 			
 			sb.append("CREATE TABLE ");
 			sb.append(name);
 			sb.append(" (");
 			sb.append("dbid INT PRIMARY KEY");
+
 			
 			Iterator<String> fi = fc.keySet().iterator();
+			if(fi.hasNext())sb.append(", ");
 			while(fi.hasNext()) {
 				Field f = fc.get(fi.next());
 				sb.append(f.getName());
@@ -190,14 +198,13 @@ public class Database {
 				else {
 					sb.append("TEXT");
 				}
-				
-				
+					
 				if(fi.hasNext())sb.append(", ");
 			}
 			sb.append(");");
 			String sql = sb.toString();
 			
-			System.out.println(sql);
+			if(ds!=null)ds.println(sql);
 			
 			try(Statement stmt = c.createStatement()) {
 				stmt.executeUpdate(sql);
@@ -219,10 +226,10 @@ public class Database {
 		}
 		private void initId(){
 			String query = String.format("SELECT MAX(dbid) FROM %s;", name);
-			System.out.println(query);
+			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(query);) {
 
-				System.out.println("Getting max id");
+				if(ds!=null)ds.println("Getting max id");
 				
 				if(!rs.next()) {
 					idCounter = 1;
@@ -260,7 +267,7 @@ public class Database {
 			sb.append(name);
 			sb.append(" (");
 			
-			TreeMap<String, Field> fmap = m.getClassFields(dataType);
+			TreeMap<String, Field> fmap = mg.getClassFields(dataType);
 			
 			sb.append("dbid, ");
 			
@@ -289,6 +296,7 @@ public class Database {
 					
 					Class fclass = f.getType();
 					
+					
 					if(fclass.equals(boolean.class)){
 						sb.append(f.getBoolean(o));
 					}
@@ -310,40 +318,47 @@ public class Database {
 					else if(fclass.equals(double.class)){
 						sb.append(f.getDouble(o));
 					}
-					else if(fclass.equals(Boolean.class) 
-						|| fclass.equals(Byte.class) 
-						|| fclass.equals(Short.class) 
-						|| fclass.equals(Integer.class) 
-						|| fclass.equals(Long.class)
-						|| fclass.equals(Float.class)
-						|| fclass.equals(Double.class)
-						) {
-						sb.append(f.get(o).toString());
-					}
-					else if(fclass.equals(String.class)) {
-						sb.append(f.get(o));
-					}
-					else if(fclass.equals(byte[].class)) {
-						sb.append("?");
-						blobs.put(blobIndex, (byte[])f.get(o));
-						blobIndex++;
-					}
-					else if(fclass.isInstance(List.class)) {
-						ByteArrayOutputStream stream = new ByteArrayOutputStream();
-						m.ObjectToBytes(f.get(o), stream);
-						byte[] bytes = stream.toByteArray();
-						sb.append(B64.encode(bytes));
-					}
-					else {
-						ByteArrayOutputStream stream = new ByteArrayOutputStream();
-						m.ObjectToBytes(f.get(o), stream);
-						byte[] bytes = stream.toByteArray();
-						sb.append(B64.encode(bytes));
+					else{
+						Object value = f.get(o);
+						if(value == null)sb.append("NULL");
+						else if(fclass.equals(Boolean.class) 
+							|| fclass.equals(Byte.class) 
+							|| fclass.equals(Short.class) 
+							|| fclass.equals(Integer.class) 
+							|| fclass.equals(Long.class)
+							|| fclass.equals(Float.class)
+							|| fclass.equals(Double.class)
+							) {
+							sb.append(f.get(o).toString());
+						}
+						else if(fclass.equals(String.class)) {
+							sb.append(f.get(o));
+						}
+						else if(fclass.equals(byte[].class)) {
+							sb.append("?");
+							blobs.put(blobIndex, (byte[])f.get(o));
+							blobIndex++;
+						}
+						else if(fclass.isInstance(List.class)) {
+							ByteArrayOutputStream stream = new ByteArrayOutputStream();
+							mg.ObjectToBytes(f.get(o), stream);
+							byte[] bytes = stream.toByteArray();
+							sb.append(B64.encode(bytes));
+						}
+						else {
+							ByteArrayOutputStream stream = new ByteArrayOutputStream();
+							mg.ObjectToBytes(f.get(o), stream);
+							byte[] bytes = stream.toByteArray();
+							sb.append(B64.encode(bytes));
+						}
 					}
 				}
-				
+				sb.append(");");		
+			
 				String sql = sb.toString();
-	
+				
+				if(ds != null)ds.println(sql);		
+				
 				if(blobs.keySet().size() == 0) {
 					try(Statement stmt = c.createStatement()) {			
 						stmt.executeUpdate(sql);
@@ -358,7 +373,7 @@ public class Database {
 			        	
 						pstmt.executeUpdate();
 			      
-			            System.out.println("Uploaded data");
+			            if(ds!=null)ds.println("Uploaded data");
 			            
 					}
 				}
@@ -377,7 +392,7 @@ public class Database {
 		public void setField(int id, String fieldName, Object value)  {
 			if(!Database.this.isopen)Database.this.open();
 				
-			TreeMap<String, Field> fields = m.getClassFields(dataType);
+			TreeMap<String, Field> fields = mg.getClassFields(dataType);
 			
 			Field f = fields.get(fieldName);
 			if(f == null)throw new RuntimeException(String.format("Object %s doens't contain field %s", dataType.getName(), fieldName));
@@ -395,11 +410,11 @@ public class Database {
 				
 				Class fclass = f.getType();
 				
-				sb.append(value.toString());
-		
-				if(fclass.isInstance(List.class)) {
+				if(value == null)sb.append("NULL");
+				
+				else if(fclass.isInstance(List.class)) {
 					ByteArrayOutputStream stream = new ByteArrayOutputStream();
-					m.ObjectToBytes(f.get(value), stream);
+					mg.ObjectToBytes(f.get(value), stream);
 					byte[] bytes = stream.toByteArray();
 					sb.append(B64.encode(bytes));
 				}
@@ -412,7 +427,7 @@ public class Database {
 				}
 				else {
 					ByteArrayOutputStream stream = new ByteArrayOutputStream();
-					m.ObjectToBytes(value, stream);
+					mg.ObjectToBytes(value, stream);
 					byte[] bytes = stream.toByteArray();
 					sb.append(B64.encode(bytes));
 				}
@@ -423,7 +438,7 @@ public class Database {
 				
 				String sql = sb.toString();
 				
-				System.out.println(sql);
+				if(ds!=null)ds.println(sql);
 				
 				
 				if(blob == null) {
@@ -451,7 +466,7 @@ public class Database {
 			if(!Database.this.isopen)Database.this.open();
 			String sql = String.format("SELECT * FROM %s WHERE dbid=%s;", name, dbid);
 					
-			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(name)){
+			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(sql)){
 				if(!rs.next())return null;
 				return readRS(rs);
 			}catch(SQLException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException | IOException e) {
@@ -473,7 +488,7 @@ public class Database {
 			
 			ArrayList<T> output = new ArrayList<T>();
 			String query = String.format("SELECT * FROM %s WHERE %s;", name, condition);
-			System.out.println(query);
+			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery( query);) {
 				while(rs.next()) {
 					output.add((T) readRS(rs));
@@ -482,10 +497,10 @@ public class Database {
 				e.printStackTrace();
 				throw new DBException(e.getMessage());
 			}
-			System.out.println("QUERY RESULT:");
-			System.out.println("----------------------------------------------------");
-			for(T t : output)System.out.println(t);
-			System.out.println("----------------------------------------------------");
+			if(ds!=null)ds.println("QUERY RESULT:");
+			if(ds!=null)ds.println("----------------------------------------------------");
+			for(T t : output)if(ds!=null)ds.println(t);
+			if(ds!=null)ds.println("----------------------------------------------------");
 			return output;
 		}
 		
@@ -499,7 +514,7 @@ public class Database {
 		public Object getField(int id, String fieldName) {
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(String.format("SELECT %s FROM %s WHERE dbid=%d", name, fieldName, id));) {
 				if(!rs.next())return null;
-				Class ftype = m.getClassFields(dataType).get(fieldName).getType();
+				Class ftype = mg.getClassFields(dataType).get(fieldName).getType();
 				
 				if(ftype.equals(boolean.class) || ftype.equals(Boolean.class)){
 					return rs.getBoolean(fieldName);
@@ -527,16 +542,18 @@ public class Database {
 				}
 				else if(ftype.isInstance(List.class)) {
 					String b64 = rs.getString(name);
+					if(b64==null)return null;
 					byte[] bytes = B64.decode(b64);
 					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
-					List l = (List)m.bytesToObject(stream);
+					List l = (List)mg.bytesToObject(stream);
 					return l;
 				}
 				else {
 					String b64 = rs.getString(name);
+					if(b64 == null)return null;
 					byte[] bytes = B64.decode(b64);
 					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
-					Object o = (Object)m.bytesToObject(stream);
+					Object o = (Object)mg.bytesToObject(stream);
 					return o;
 				}
 
@@ -548,7 +565,7 @@ public class Database {
 		
 		
 		private T readRS(ResultSet rs) throws IllegalArgumentException, IllegalAccessException, SQLException, InstantiationException, InvocationTargetException, NoSuchMethodException, SecurityException, IOException {
-			TreeMap<String, Field> dTypeFields = m.getClassFields(dataType);
+			TreeMap<String, Field> dTypeFields = mg.getClassFields(dataType);
 			DBObject output = (DBObject)dataType.getDeclaredConstructor().newInstance();
 			output.getMeta().setId(rs.getInt("dbid"));
 			
@@ -608,17 +625,23 @@ public class Database {
 				}
 				else if(ftype.isInstance(List.class)) {
 					String b64 = rs.getString(name);
-					byte[] bytes = B64.decode(b64);
-					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
-					List l = (List)m.bytesToObject(stream);
-					f.set(output, l);
+					if(b64 == null)f.set(output, null);
+					else{
+						byte[] bytes = B64.decode(b64);
+						ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
+						List l = (List)mg.bytesToObject(stream);
+						f.set(output, l);
+					}
 				}
 				else {
 					String b64 = rs.getString(name);
-					byte[] bytes = B64.decode(b64);
-					ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
-					Object o = (Object)m.bytesToObject(stream);
-					f.set(output, o);
+					if(b64 == null)f.set(output, null);
+					else{
+						byte[] bytes = B64.decode(b64);
+						ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
+						Object o = (Object)mg.bytesToObject(stream);
+						f.set(output, o);
+					}
 				}
 			}
 			return (T)output;
@@ -633,7 +656,7 @@ public class Database {
 		public void delete(int id) {
 			if(!Database.this.isopen)Database.this.open();
 			String query = String.format("DELETE FROM %s WHERE dbid=%d;", name, id);
-			System.out.println(query);
+			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement()){
 				 stmt.executeQuery(query);
 			}catch(SQLException e) {
@@ -650,7 +673,7 @@ public class Database {
 		public void delete(String condition) {
 			if(!Database.this.isopen)Database.this.open();
 			String query = String.format("DELETE FROM %s WHERE %s;", name, condition);
-			System.out.println(query);
+			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement()){
 				 stmt.executeQuery(query);
 			}catch(SQLException e) {
