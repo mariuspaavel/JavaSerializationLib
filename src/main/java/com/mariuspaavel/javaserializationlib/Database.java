@@ -298,7 +298,7 @@ public class Database {
 					
 					
 					if(fclass.equals(boolean.class)){
-						sb.append(f.getBoolean(o));
+						sb.append(f.getBoolean(o) ? "1" : "0");
 					}
 					else if(fclass.equals(byte.class)) {
 						sb.append(f.getByte(o));
@@ -321,8 +321,7 @@ public class Database {
 					else{
 						Object value = f.get(o);
 						if(value == null)sb.append("NULL");
-						else if(fclass.equals(Boolean.class) 
-							|| fclass.equals(Byte.class) 
+						else if(fclass.equals(Byte.class) 
 							|| fclass.equals(Short.class) 
 							|| fclass.equals(Integer.class) 
 							|| fclass.equals(Long.class)
@@ -331,8 +330,14 @@ public class Database {
 							) {
 							sb.append(f.get(o).toString());
 						}
+						else if(fclass.equals(Boolean.class)){
+							boolean b = (Boolean)f.get(o);
+							sb.append(b ? "1" : "0");
+						}
 						else if(fclass.equals(String.class)) {
+							sb.append("\"");
 							sb.append(f.get(o));
+							sb.append("\"");
 						}
 						else if(fclass.equals(byte[].class)) {
 							sb.append("?");
@@ -343,15 +348,20 @@ public class Database {
 							ByteArrayOutputStream stream = new ByteArrayOutputStream();
 							mg.ObjectToBytes(f.get(o), stream);
 							byte[] bytes = stream.toByteArray();
+							sb.append("\"");
 							sb.append(B64.encode(bytes));
+							sb.append("\"");
 						}
 						else {
 							ByteArrayOutputStream stream = new ByteArrayOutputStream();
 							mg.ObjectToBytes(f.get(o), stream);
 							byte[] bytes = stream.toByteArray();
+							sb.append("\"");
 							sb.append(B64.encode(bytes));
+							sb.append("\"");
 						}
 					}
+					if(names.hasNext())sb.append(", ");
 				}
 				sb.append(");");		
 			
@@ -411,25 +421,37 @@ public class Database {
 				Class fclass = f.getType();
 				
 				if(value == null)sb.append("NULL");
-				
+				else if(value instanceof String){
+					sb.append("\"");
+					sb.append(value.toString());
+					sb.append("\"");
+				}
 				else if(fclass.isInstance(List.class)) {
 					ByteArrayOutputStream stream = new ByteArrayOutputStream();
 					mg.ObjectToBytes(f.get(value), stream);
 					byte[] bytes = stream.toByteArray();
+					sb.append("\"");
 					sb.append(B64.encode(bytes));
+					sb.append("\"");
 				}
 				else if(fclass.equals(byte[].class)) {
 					sb.append("?");
 					blob = (byte[])f.get(value);
 				}
-				else if(value instanceof Number || value instanceof Boolean){
+				else if(value instanceof Number){
 					sb.append(value.toString());
+				}
+				else if(value instanceof Boolean){
+					if((Boolean)value)sb.append(1);
+					else sb.append(0);
 				}
 				else {
 					ByteArrayOutputStream stream = new ByteArrayOutputStream();
 					mg.ObjectToBytes(value, stream);
 					byte[] bytes = stream.toByteArray();
+					sb.append("\"");
 					sb.append(B64.encode(bytes));
+					sb.append("\"");
 				}
 
 				sb.append(" WHERE dbid=");
@@ -681,9 +703,7 @@ public class Database {
 				throw new RuntimeException(e.getMessage());
 			}
 		}
-		
-		
+				
 	}
 
-	
 }

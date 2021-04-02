@@ -474,6 +474,7 @@ public class Manager {
 	}
 	private Object inflateObject(Object input){
 		if(d)ds.println("Inflating object");
+		if(input == null)throw new NullPointerException("Cannot inflate null JSON object");
 		if(input instanceof Map)return inflateClass((Map<String, Object>)input);
 		else if(input instanceof List)return inflateList((List)input);
 		else return input; 

@@ -9,15 +9,26 @@ class JsonMap{
 	private InputStreamReader is = null;
 	private PrintStream ps = null;
 
+	private char nextChar(){
+		try{
+			int code = is.read();
+
+			if(code == -1)throw new RuntimeException("No JSON object could be read, InputStream ended unexpectedly.");
+			return c = (char)code;
+		}catch(IOException e){
+			throw new RuntimeException(e.getMessage());
+		}
+	}
+
 	private Map<String, Object> readMap() throws IOException{
 		if(d)ds.println("Reading map");
 		if(c != '{')throw new RuntimeException(String.format("Invalid map object start '%c'", c));
-		c = (char)is.read();
+		nextChar();
 		Map<String, Object> result = new HashMap<String, Object>();
 		boolean expectNext = false;
 		outer:while(true){
 			if(Character.isWhitespace(c)){
-				c = (char)is.read();
+				nextChar();
 				continue;
 			}
 			switch(c){
@@ -29,19 +40,19 @@ class JsonMap{
 				case '\"': 
 					String name = readString();
 					while(true){
-						c = (char)is.read();
+						nextChar();
 						if(Character.isWhitespace(c))continue;
 						else if(c == ':')break;
 						else throw new RuntimeException("Invalid json map: no ':' character between key and value");
 					}
-					c = (char)is.read();
-					while(Character.isWhitespace(c))c = (char)is.read();
+					nextChar();
+					while(Character.isWhitespace(c))nextChar();
 					Object o = readObject();
-					if(!(o instanceof Number))c = (char)is.read();	
-					while(Character.isWhitespace(c))c = (char)is.read();
+					if(!(o instanceof Number))nextChar();	
+					while(Character.isWhitespace(c))nextChar();
 					if(c == ','){
 						expectNext = true;
-						c = (char)is.read();
+						nextChar();
 					}
 					else expectNext = false;
 					result.put(name, o);
@@ -57,14 +68,14 @@ class JsonMap{
 		List<Object> list = new ArrayList<Object>();
 		boolean expectNext = false;
 		while(true){
-			c = (char)is.read();
+			nextChar();
 			if(Character.isWhitespace(c))continue;
 			Object o = readObject();			
 			if(o != null){
 				expectNext = false;
 				list.add(o);
-				if(!(o instanceof Number))c = (char)is.read();
-				while(Character.isWhitespace(c))c = (char)is.read();
+				if(!(o instanceof Number))nextChar();
+				while(Character.isWhitespace(c))nextChar();
 			}else if(expectNext)throw new RuntimeException("Invalid json list");
 			if(c == ',')expectNext = true;
 			else if(c == ']'){
@@ -78,7 +89,7 @@ class JsonMap{
 		if(c != '\"')throw new RuntimeException("Invalid string start position (must start with '\"')");
 		StringBuilder sb = new StringBuilder();
 		while(true){
-			c = (char)is.read();
+			nextChar();
 			if(c == '\"'){
 				if(d)ds.println("Reached the end of string");
 				break;
@@ -92,7 +103,7 @@ class JsonMap{
 		StringBuilder sb = new StringBuilder();
 		do{
 			sb.append(c);
-		}while(numChars(c = (char)is.read()));
+		}while(numChars(nextChar()));
 
 		String s = sb.toString().toLowerCase();
 		if(s.contains(".") || s.contains("e")){
@@ -119,14 +130,15 @@ class JsonMap{
 		else throw new RuntimeException("invalid boolean value in json");
 		
 		for(int i = 1; i < expected.length(); i++){
-			c = Character.toLowerCase((char)is.read());
+			nextChar();
+			c = Character.toLowerCase(c);
 			if(c != expected.charAt(i))throw new RuntimeException("invalid boolean value in json");
 		}
 		if(d)ds.println("Reached the end of boolean");
 		return expected == trueSequence;
 	}
 	private Object readObject()throws IOException{
-		
+		if(d)ds.printf("Reading object starting with character '%c' (x%x)\n", c , c & 0xffff);	
 		if(Character.isDigit(c))return readNumber();
 			
 		switch(c){
@@ -142,9 +154,12 @@ class JsonMap{
 	}
 	public Object readObject(InputStreamReader is)throws IOException{
 		this.is = is;
-		c = (char)is.read();
-		while(Character.isWhitespace(c))c = (char)is.read();
-		return readObject();
+		Object output = null;
+		do{
+			nextChar();	
+			output = readObject();
+		}while(output == null);
+		return output;
 	}
 	private void writeString(String s, boolean indent, int depth) throws IOException{
 		if(d)ds.println("Writing string");
