@@ -680,7 +680,7 @@ public class Database {
 			String query = String.format("DELETE FROM %s WHERE dbid=%d;", name, id);
 			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement()){
-				 stmt.executeQuery(query);
+				 stmt.executeUpdate(query);
 			}catch(SQLException e) {
 				e.printStackTrace();
 				throw new RuntimeException(e.getMessage());
@@ -697,7 +697,7 @@ public class Database {
 			String query = String.format("DELETE FROM %s WHERE %s;", name, condition);
 			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement()){
-				 stmt.executeQuery(query);
+				 stmt.executeUpdate(query);
 			}catch(SQLException e) {
 				e.printStackTrace();
 				throw new RuntimeException(e.getMessage());
