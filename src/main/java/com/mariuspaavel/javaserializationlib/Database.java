@@ -526,6 +526,20 @@ public class Database {
 			return output;
 		}
 		
+		public T queryFirst(String condition){
+			if(!Database.this.isopen)Database.this.open();
+			String query = String.format("SELECT * FROM %s WHERE %s;", name, condition);
+			if(ds!=null)ds.println(query);
+			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery( query);) {
+				if(rs.next()) {
+					return readRS(rs);
+				}else return null;
+			}catch(SQLException | IOException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+				e.printStackTrace();
+				throw new DBException(e.getMessage());
+			}
+		}
+		
 		/**
 		*Gets one specific field from an object in the table.
 		* @param id The primary key id of the object in the database. =
