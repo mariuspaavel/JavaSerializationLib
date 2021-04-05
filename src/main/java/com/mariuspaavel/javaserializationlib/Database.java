@@ -530,7 +530,7 @@ public class Database {
 		
 		public T queryFirst(String condition){
 			if(!Database.this.isopen)Database.this.open();
-			String query = String.format("SELECT * FROM %s WHERE %s;", name, condition);
+			String query = String.format("SELECT * FROM %s %s;", name, condition);
 			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery( query);) {
 				if(rs.next()) {
