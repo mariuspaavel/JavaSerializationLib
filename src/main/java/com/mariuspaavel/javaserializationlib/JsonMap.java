@@ -187,6 +187,8 @@ class JsonMap{
 	}
 	public Object readObject(InputStreamReader is)throws IOException{
 		this.is = is;
+		nextChar();
+		skipWS();
 		try{
 			return readObject();
 		}catch(UnknownObject e){
@@ -250,12 +252,12 @@ class JsonMap{
 	}
 	private void writeObject(Object o, boolean indent, int depth) throws IOException{
 		if(d)ds.println("Writing object");
+		if(o == null)writeNull(indent, depth);
 		Class cl = o.getClass();
 		if(o instanceof List)writeList((List)o, indent, depth);
 		else if(o instanceof Map)writeMap((Map)o, indent, depth);
 		else if(o instanceof Number)writeNumber((Number)o, indent, depth);
 		else if(o instanceof Boolean)writeBoolean((Boolean)o, indent, depth);
-		else if(o == null)writeNull(indent, depth);
 		else writeString(o.toString(), indent, depth);
 	}
 	public void writeObject(Object o, PrintStream ps) throws IOException{
