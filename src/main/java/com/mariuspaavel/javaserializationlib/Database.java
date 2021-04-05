@@ -383,7 +383,7 @@ public class Database {
 			        	
 						pstmt.executeUpdate();
 			      
-			            if(ds!=null)ds.println("Uploaded data");
+			          		 if(ds!=null)ds.println("Uploaded blob data");
 			            
 					}
 				}
@@ -487,7 +487,9 @@ public class Database {
 		public T get(int dbid) {
 			if(!Database.this.isopen)Database.this.open();
 			String sql = String.format("SELECT * FROM %s WHERE dbid=%s;", name, dbid);
-					
+			
+			if(ds != null)ds.println(sql);			
+	
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery(sql)){
 				if(!rs.next())return null;
 				return readRS(rs);
@@ -509,7 +511,7 @@ public class Database {
 			if(!Database.this.isopen)Database.this.open();
 			
 			ArrayList<T> output = new ArrayList<T>();
-			String query = String.format("SELECT * FROM %s WHERE %s;", name, condition);
+			String query = String.format("SELECT * FROM %s %s;", name, condition);
 			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery( query);) {
 				while(rs.next()) {
@@ -532,7 +534,7 @@ public class Database {
 			if(ds!=null)ds.println(query);
 			try(Statement stmt = c.createStatement(); ResultSet rs = stmt.executeQuery( query);) {
 				if(rs.next()) {
-					return readRS(rs);
+					return (T)readRS(rs);
 				}else return null;
 			}catch(SQLException | IOException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
 				e.printStackTrace();
