@@ -107,11 +107,23 @@ class JsonMap{
 		StringBuilder sb = new StringBuilder();
 		while(true){
 			nextChar();
-			if(c == '\"'){
+			if(c == '\\'){
+				nextChar();
+				switch(c){
+					case 'n': sb.append('\n'); break;
+					case 'b': sb.append('\b'); break;
+					case 'f': sb.append('\f'); break;
+					case 'r': sb.append('\r'); break;
+					case 't': sb.append('\t'); break;
+					case '\"': sb.append('\"'); break;
+					case '\\': sb.append('\\'); break; 
+				}
+			}
+			else if(c == '\"'){
 				if(d)ds.println("Reached the end of string");
 				break;
 			}
-			sb.append(c);
+			else sb.append(c);
 		}
 		return sb.toString();
 	}
@@ -199,7 +211,19 @@ class JsonMap{
 		if(d)ds.println("Writing string");
 		if(indent)for(int i = 0; i < depth; i++)ps.print('\t');
 		ps.print('\"');
-		ps.print(s);
+		for(int i = 0; i < s.length(); i++){
+			char ch = s.charAt(i);
+			switch(c){
+				case '\b': ps.print("\\b"); break;
+				case '\f': ps.print("\\f"); break;
+				case '\n': ps.print("\\n"); break;
+				case '\r': ps.print("\\r"); break;
+				case '\t': ps.print("\\t"); break;
+				case '\"': ps.print("\\\""); break;
+				case '\\': ps.print("\\\\"); break;
+				default: ps.print(ch);
+			}
+		}
 		ps.print('\"');
 	}
 	private void writeMap(Map<String, Object> m, boolean indent, int depth) throws IOException{
