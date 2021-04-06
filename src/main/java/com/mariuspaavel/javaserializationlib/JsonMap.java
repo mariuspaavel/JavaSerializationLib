@@ -233,6 +233,7 @@ class JsonMap{
 		ps.print('\n');
 		for(Iterator<String> iter = m.keySet().iterator(); iter.hasNext();){
 			String s = iter.next();
+			if(m.get(s) == null)continue;
 			writeString(s, true, depth+1);
 			ps.print(':');
 			ps.print(' ');
@@ -250,7 +251,8 @@ class JsonMap{
 		ps.print('[');
 		ps.print('\n');
 		for(Iterator<Object> iter = l.iterator(); iter.hasNext();){
-			Object o = iter.next();
+			Object o = null;
+			while(o == null)o = iter.next();
 			writeObject(o, true, depth+1);
 			if(iter.hasNext())ps.print(',');
 			ps.print('\n');

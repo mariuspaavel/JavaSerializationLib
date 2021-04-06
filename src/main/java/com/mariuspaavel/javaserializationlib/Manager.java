@@ -206,7 +206,7 @@ public class Manager {
 				stream.write(NumberSerializer.intToByteArray(bytes.length));
 				stream.write(bytes);
 			}
-			else if(c.isInstance(List.class)) {
+			else if(List.class.isAssignableFrom(c)) {
 				List l = (List)o;
 				stream.write(NumberSerializer.intToByteArray(l.size()));
 				for(Object elem : l) {
@@ -263,7 +263,7 @@ public class Manager {
 				stream.read(buf);
 				return buf;
 			}
-			else if(c.isInstance(List.class)) {
+			else if(List.class.isAssignableFrom(c)) {
 				int length = NumberSerializer.readInt(stream);
 				List l = (List)c.getDeclaredConstructor().newInstance();
 				for(int i = 0; i < length; i++) {
