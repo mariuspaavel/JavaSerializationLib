@@ -216,6 +216,10 @@ public class Manager {
 			else  {
 				TreeMap<String, Field> fields = classInfo.get(c);
 				if(fields == null)throw new RuntimeException(String.format("Class %s isn't registrated", c.getName()));
+				if(o instanceof DBObject){
+					int dbid = ((DBObject)o).getMeta().getId();
+					stream.write(NumberSerializer.intToByteArray(dbid));
+				}
 				for(String fname: fields.keySet()) {
 					Field f = fields.get(fname);
 					fieldToBytes(f, o, stream);
@@ -274,6 +278,10 @@ public class Manager {
 			else {
 				Object o = c.getDeclaredConstructor().newInstance();
 				TreeMap<String, Field> cinf = classInfo.get(c);
+	
+				if(o instanceof DBObject){
+					((DBObject)o).getMeta().id = NumberSerializer.readInt(stream);
+				}
 				
 				for(Field f : cinf.values()) {
 					if(f.getType().equals(byte.class)) {
@@ -349,6 +357,7 @@ public class Manager {
 		if(fields == null)throw new IllegalArgumentException("Unknown class");
 		
 		map.put("className", cl.getName());
+		if(o instanceof DBObject)map.put("dbid", ((DBObject)o).getMeta().getId());
 
 		try{
 			for(String s: fields.keySet()){
@@ -424,6 +433,10 @@ public class Manager {
 			throw new RuntimeException("Failed to inflate class");
 		}
 		TreeMap<String, Field> cinf = classInfo.get(cl);
+
+		if(output instanceof DBObject){
+			((DBObject)output).getMeta().id = (int)((Long)input.get("dbid")).longValue();
+		}
 		
 		try{
 			for(String fieldName : cinf.keySet()){

@@ -5,7 +5,7 @@ package com.mariuspaavel.javaserializationlib;
 * All classes that are designed to be the contants of a database must implement the DBObject interface, thus provide the DBObjectMeta class.
 */
 public class DBObjectMeta {
-	private int id = -1;
+	int id = -1;
 	void setId(int id) {
 		this.id = id;
 	}

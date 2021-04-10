@@ -78,6 +78,14 @@ public class Database {
 		}
 	}
 	
+	/**
+	*Get the raw database connection;
+	*/
+	protected Connection getConnection(){
+		if(!isopen)open();
+		return c;
+	}
+	
 	private Manager mg;
 	private String name;	
 

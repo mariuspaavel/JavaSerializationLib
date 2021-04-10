@@ -133,15 +133,19 @@ class JsonMap{
 		do{
 			sb.append(c);
 		}while(numChars(nextChar()));
-
+		
 		String s = sb.toString().toLowerCase();
 		if(s.contains(".") || s.contains("e")){
-			return new Double(s);
+			Double dv = new Double(s);
+			if(d)ds.printf("Read double: %d\n", dv.doubleValue());
+			return dv;
 		}
-		else return new Long(s);
+		Long lv = new Long(s);
+		if(d)ds.printf("Read long: %d\n", lv.longValue());
+		return lv;
 	}
 	private static boolean numChars(char c){
-		if(Character.isDigit(c) || c == '.' || c == 'e' || c == 'E')return true;	
+		if(Character.isDigit(c) || c=='-' || c == '.' || c == 'e' || c == 'E')return true;	
 		else return false;
 	}
 	private boolean readBoolean() throws IOException{
@@ -183,7 +187,7 @@ class JsonMap{
 
 	private Object readObject()throws IOException, UnknownObject{
 		if(d)ds.printf("Reading object starting with character '%c' (x%x)\n", c , c & 0xffff);	
-		if(Character.isDigit(c))return readNumber();
+		if(numChars(c))return readNumber();
 			
 		switch(c){
 			case '{': return readMap();
@@ -192,7 +196,6 @@ class JsonMap{
 			case 't': return readBoolean();
 			case 'f': return readBoolean();
 			case 'n': return readNull();
-			case '.': return readNumber();
 			default: throw new UnknownObject();
 		}
 	
@@ -213,7 +216,7 @@ class JsonMap{
 		ps.print('\"');
 		for(int i = 0; i < s.length(); i++){
 			char ch = s.charAt(i);
-			switch(c){
+			switch(ch){
 				case '\b': ps.print("\\b"); break;
 				case '\f': ps.print("\\f"); break;
 				case '\n': ps.print("\\n"); break;
